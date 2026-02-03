@@ -1,8 +1,9 @@
 import json
 import ollama
 import threading
+import time
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from django.contrib.auth.decorators import login_required
 from core.models import Tool
 
@@ -63,7 +64,6 @@ def chat_send(request):
         message = request.POST.get('message')
         history = request.POST.get('history', '[]')
         
-        # Initialize default response context
         try:
             total_tokens = int(request.POST.get('total_tokens', 0))
         except (ValueError, TypeError):
@@ -74,7 +74,6 @@ def chat_send(request):
         except Exception:
             history_list = []
 
-        # LLM Parameters
         try:
             temperature = float(request.POST.get('temperature', 0.7))
             top_p = float(request.POST.get('top_p', 0.9))
@@ -86,12 +85,10 @@ def chat_send(request):
             return HttpResponse(f"Invalid parameter value: {str(e)}", status=400)
             
         if not model or not message:
-            return HttpResponse(f"Model and message are required (Model: {model})", status=400)
+            return HttpResponse(f"Model and message are required", status=400)
             
-        # Add user message to history
         history_list.append({"role": user_role, "content": message})
         
-        # Prepare messages for Ollama
         api_messages = []
         if system_prompt:
             api_messages.append({"role": "system", "content": system_prompt})
@@ -99,57 +96,88 @@ def chat_send(request):
         for m in history_list:
             api_messages.append({"role": m["role"], "content": m["content"]})
         
-        try:
-            headers = {}
-            if api_token:
-                headers["Authorization"] = f"Bearer {api_token}"
+        def stream_generator():
+            try:
+                headers = {}
+                if api_token:
+                    headers["Authorization"] = f"Bearer {api_token}"
+                    
+                client = ollama.Client(host='http://localhost:11434', headers=headers)
                 
-            client = ollama.Client(host='http://localhost:11434', headers=headers)
-            response = client.chat(
-                model=model,
-                messages=api_messages,
-                options={
-                    "temperature": temperature,
-                    "top_p": top_p,
-                    "num_ctx": num_ctx
-                }
-            )
-            
-            assistant_message = response.get('message', {}).get('content', '')
-            
-            # Token counts
-            prompt_tokens = response.get('prompt_eval_count', 0)
-            completion_tokens = response.get('eval_count', 0)
-            message_tokens = prompt_tokens + completion_tokens
-            new_total_tokens = total_tokens + message_tokens
-            
-            # Add assistant message to history
-            history_list.append({
-                "role": "assistant", 
-                "content": assistant_message,
-                "tokens": message_tokens
-            })
-            
-            context = {
-                'history_json': json.dumps(history_list),
-                'history': history_list,
-                'model': model,
-                'message_tokens': message_tokens,
-                'total_tokens': new_total_tokens
-            }
-            return render(request, 'core/partials/ollama_chat_messages.html', context)
-            
-        except Exception as e:
-            error_msg = str(e)
-            # Check for common Ollama errors
-            if "unauthorized" in error_msg.lower() or "401" in error_msg:
-                error_msg = "Ollama is unauthorized to use this model. If this is a cloud model, please provide an API Token in the settings sidebar."
-            
-            return render(request, 'core/partials/ollama_chat_messages.html', {
-                'error': error_msg, 
-                'model': model,
-                'history_json': json.dumps(history_list),
-                'total_tokens': total_tokens
-            })
+                # Use stream=True for Ollama chat
+                stream = client.chat(
+                    model=model,
+                    messages=api_messages,
+                    options={
+                        "temperature": temperature,
+                        "top_p": top_p,
+                        "num_ctx": num_ctx
+                    },
+                    stream=True
+                )
+                
+                full_content = ""
+                message_tokens = 0
+                
+                # Initial placeholder for the assistant message
+                yield f'<div class="d-flex mb-4 animate-fade-in" id="streaming-response-container">' \
+                      f'<div class="flex-shrink-0 me-3">' \
+                      f'<div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">' \
+                      f'<i class="bi bi-robot text-white"></i>' \
+                      f'</div>' \
+                      f'</div>' \
+                      f'<div class="flex-grow-1">' \
+                      f'<div class="fw-bold small mb-1">Ollama <span class="text-muted fw-normal">({model})</span></div>' \
+                      f'<div class="p-3 rounded-3 border border-secondary border-opacity-25 text-main small shadow-sm markdown-content" ' \
+                      f'style="max-width: 85%; background-color: var(--card-bg);" id="streaming-text-target"></div>' \
+                      f'</div></div>'
+
+                for chunk in stream:
+                    content = chunk.get('message', {}).get('content', '')
+                    full_content += content
+                    
+                    # Escape content for JS
+                    safe_content = json.dumps(content)
+                    # Use a script to append content to the target div and trigger scrolling
+                    yield f'<script>' \
+                          f'document.getElementById("streaming-text-target").textContent += {safe_content};' \
+                          f'document.getElementById("chat-history-container").scrollTop = document.getElementById("chat-history-container").scrollHeight;' \
+                          f'</script>'
+                    
+                    if chunk.get('done'):
+                        prompt_tokens = chunk.get('prompt_eval_count', 0)
+                        completion_tokens = chunk.get('eval_count', 0)
+                        message_tokens = prompt_tokens + completion_tokens
+                
+                # Finalize the message: render markdown, update history, tokens, etc.
+                history_list.append({
+                    "role": "assistant", 
+                    "content": full_content,
+                    "tokens": message_tokens
+                })
+                
+                new_total_tokens = total_tokens + message_tokens
+                
+                yield f'<script>' \
+                      f'var container = document.getElementById("streaming-response-container");' \
+                      f'var target = document.getElementById("streaming-text-target");' \
+                      f'target.setAttribute("data-raw-content", {json.dumps(full_content)});' \
+                      f'target.removeAttribute("id");' \
+                      f'container.removeAttribute("id");' \
+                      f'if(window.renderMarkdown) window.renderMarkdown(target);' \
+                      f'target.setAttribute("data-rendered", "true");' \
+                      f'document.getElementById("history-input").value = {json.dumps(json.dumps(history_list))};' \
+                      f'document.getElementById("total-tokens-input").value = "{new_total_tokens}";' \
+                      f'document.getElementById("total-tokens-display").innerText = "{new_total_tokens}";' \
+                      f'</script>'
+                      
+            except Exception as e:
+                error_msg = str(e)
+                if "unauthorized" in error_msg.lower() or "401" in error_msg:
+                    error_msg = "Ollama is unauthorized to use this model."
+                
+                yield f'<div class="alert alert-danger small mt-2">{error_msg}</div>'
+
+        return StreamingHttpResponse(stream_generator(), content_type='text/html')
             
     return HttpResponse("Method not allowed", status=405)
