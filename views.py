@@ -1,9 +1,8 @@
-import requests
 import json
+import ollama
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
-from core.models import Tool
 
 @login_required
 def pull_model(request):
@@ -11,9 +10,8 @@ def pull_model(request):
         model_name = request.POST.get('model_name')
         if model_name:
             try:
-                # We do it asynchronously in Ollama, but here we just trigger it
-                # For a better UX, we could stream the progress, but for now just send the request
-                requests.post("http://localhost:11434/api/pull", json={"name": model_name, "stream": False}, timeout=5)
+                client = ollama.Client(host='http://localhost:11434')
+                client.pull(model_name)
             except Exception as e:
                 return HttpResponse(f"Error pulling model: {str(e)}", status=500)
     return redirect('/tool/ollama/?tab=models')
@@ -24,7 +22,8 @@ def delete_model(request):
         model_name = request.POST.get('model_name')
         if model_name:
             try:
-                requests.delete("http://localhost:11434/api/delete", json={"name": model_name}, timeout=5)
+                client = ollama.Client(host='http://localhost:11434')
+                client.delete(model_name)
             except Exception as e:
                 return HttpResponse(f"Error deleting model: {str(e)}", status=500)
     return redirect('/tool/ollama/?tab=models')
@@ -47,62 +46,63 @@ def chat_send(request):
         
         try:
             history_list = json.loads(history)
-        except Exception as e:
+        except Exception:
             history_list = []
             
         if not model or not message:
-            return HttpResponse(f"Model and message are required (Model: {model}, Message: {message})", status=400)
+            return HttpResponse(f"Model and message are required (Model: {model})", status=400)
             
+        # Add user message to history
         history_list.append({"role": "user", "content": message})
         
+        # Prepare messages for Ollama (remove custom fields like 'tokens' if they exist)
+        api_messages = [{"role": m["role"], "content": m["content"]} for m in history_list]
+        
         try:
-            response = requests.post(
-                "http://localhost:11434/api/chat",
-                json={
-                    "model": model,
-                    "messages": history_list,
-                    "stream": False,
-                    "options": {
-                        "temperature": temperature,
-                        "top_p": top_p,
-                        "num_ctx": num_ctx
-                    }
-                },
-                timeout=120
+            client = ollama.Client(host='http://localhost:11434')
+            response = client.chat(
+                model=model,
+                messages=api_messages,
+                options={
+                    "temperature": temperature,
+                    "top_p": top_p,
+                    "num_ctx": num_ctx
+                }
             )
             
-            if response.status_code == 200:
-                result = response.json()
-                assistant_message = result.get('message', {}).get('content', '')
-                
-                # Token counts from Ollama (might be missing if cached)
-                prompt_tokens = result.get('prompt_eval_count', 0)
-                completion_tokens = result.get('eval_count', 0)
-                message_tokens = prompt_tokens + completion_tokens
-                new_total_tokens = total_tokens + message_tokens
-                
-                history_list.append({
-                    "role": "assistant", 
-                    "content": assistant_message,
-                    "tokens": message_tokens
-                })
-                
-                context = {
-                    'history_json': json.dumps(history_list),
-                    'history': history_list,
-                    'model': model,
-                    'message_tokens': message_tokens,
-                    'total_tokens': new_total_tokens
-                }
-                return render(request, 'core/partials/ollama_chat_messages.html', context)
-            else:
-                error_msg = f"Ollama API Error ({response.status_code}): {response.text}"
-                return render(request, 'core/partials/ollama_chat_messages.html', {'error': error_msg, 'model': model})
-        except requests.exceptions.Timeout:
-            error_msg = "Request to Ollama timed out. The model might be too large or your system is under heavy load."
-            return render(request, 'core/partials/ollama_chat_messages.html', {'error': error_msg, 'model': model})
+            assistant_message = response.get('message', {}).get('content', '')
+            
+            # Token counts
+            prompt_tokens = response.get('prompt_eval_count', 0)
+            completion_tokens = response.get('eval_count', 0)
+            message_tokens = prompt_tokens + completion_tokens
+            new_total_tokens = total_tokens + message_tokens
+            
+            # Add assistant message to history
+            history_list.append({
+                "role": "assistant", 
+                "content": assistant_message,
+                "tokens": message_tokens
+            })
+            
+            context = {
+                'history_json': json.dumps(history_list),
+                'history': history_list,
+                'model': model,
+                'message_tokens': message_tokens,
+                'total_tokens': new_total_tokens
+            }
+            return render(request, 'core/partials/ollama_chat_messages.html', context)
+            
         except Exception as e:
-            error_msg = f"Internal Error: {str(e)}"
-            return render(request, 'core/partials/ollama_chat_messages.html', {'error': error_msg, 'model': model})
+            error_msg = str(e)
+            # Check for common Ollama errors
+            if "unauthorized" in error_msg.lower():
+                error_msg = "Ollama is unauthorized to use this model. You might need to sign in via 'ollama box' or use a local model."
+            
+            return render(request, 'core/partials/ollama_chat_messages.html', {
+                'error': error_msg, 
+                'model': model
+            })
             
     return HttpResponse("Method not allowed", status=405)
