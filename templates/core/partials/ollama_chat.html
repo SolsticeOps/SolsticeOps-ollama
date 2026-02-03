@@ -10,14 +10,14 @@
     <!-- Settings Sidebar -->
     <div class="col-md-3 h-100">
         <div class="card shadow-sm border-0 h-100 overflow-y-auto">
-            <div class="card-body p-4">
+            <div class="card-body p-4" style="padding-top:5px !important;">
                 <h6 class="fw-bold mb-4 d-flex align-items-center">
                     <i class="bi bi-sliders me-2"></i> LLM Settings
                 </h6>
                 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">Selected Model</label>
-                    <select id="chat-model-select" class="form-select form-select-sm bg-transparent text-main border-secondary">
+                    <select id="chat-model-select" class="form-select form-select-sm border-secondary">
                         {% for model in models %}
                         <option value="{{ model.model }}">{{ model.model }}</option>
                         {% empty %}
@@ -47,7 +47,7 @@
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">Context Window</label>
-                    <select id="ctx-select" class="form-select form-select-sm bg-transparent text-main border-secondary"
+                    <select id="ctx-select" class="form-select form-select-sm border-secondary"
                             onchange="document.getElementById('num-ctx-input').value = this.value;">
                         <option value="2048">2048 tokens</option>
                         <option value="4096" selected>4096 tokens</option>
@@ -59,21 +59,21 @@
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">API Token (Cloud)</label>
-                    <input type="password" id="api-token-input-field" class="form-control form-control-sm bg-transparent text-main border-secondary" 
+                    <input type="password" id="api-token-input-field" class="form-control form-control-sm border-secondary" 
                            placeholder="Optional API key..."
                            oninput="document.getElementById('api-token-input').value = this.value;">
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">System Prompt</label>
-                    <textarea id="system-prompt-textarea" class="form-control form-control-sm bg-transparent text-main border-secondary" 
+                    <textarea id="system-prompt-textarea" class="form-control form-control-sm border-secondary" 
                               style="resize: none; height: 80px;" placeholder="Optional system instructions..."
                               oninput="document.getElementById('system-prompt-input').value = this.value;"></textarea>
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">User Role</label>
-                    <select id="user-role-select" class="form-select form-select-sm bg-transparent text-main border-secondary"
+                    <select id="user-role-select" class="form-select form-select-sm border-secondary"
                             onchange="document.getElementById('user-role-input').value = this.value;">
                         <option value="user" selected>User</option>
                         <option value="assistant">Assistant</option>
@@ -155,7 +155,7 @@
                     <div class="input-group shadow-sm">
                         <textarea name="message" 
                                   placeholder="Message Ollama..." 
-                                  class="form-control bg-transparent text-main border-secondary p-2"
+                                  class="form-control border-secondary p-2"
                                   style="resize: none; height: 60px;"
                                   required
                                   onkeydown="if(event.keyCode == 13 && !event.shiftKey) { event.preventDefault(); this.form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); }"></textarea>
@@ -275,7 +275,7 @@
                     </div>
                     <div class="flex-grow-1 text-end d-flex flex-column align-items-end">
                         <div class="fw-bold small mb-1">You</div>
-                        <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-main small shadow-sm markdown-content" style="max-width: 85%; text-align: left; white-space: pre-wrap;">
+                        <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-main small shadow-sm markdown-content" style="max-width: 85%; text-align: left;">
                             ${userMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}
                         </div>
                     </div>
@@ -439,11 +439,12 @@
     .markdown-content p:last-child {
         margin-bottom: 0;
     }
-    .markdown-content {
-        white-space: pre-wrap;
-    }
     .markdown-content ul, .markdown-content ol {
         padding-left: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .markdown-content li {
+        margin-bottom: 0.25rem;
     }
     #chat-history-container::-webkit-scrollbar {
         width: 6px;

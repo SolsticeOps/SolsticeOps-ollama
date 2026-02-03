@@ -1,11 +1,14 @@
 {% load core_tags %}
 <div class="card shadow-sm border-0" 
      id="ollama-models-container"
+     hx-ext="morph"
      hx-get="/tool/ollama/?tab=models" 
      hx-trigger="every 5s" 
      hx-select="#ollama-models-container" 
      hx-target="#ollama-models-container" 
-     hx-swap="morph:outerHTML">
+     hx-swap="morph"
+     hx-on:htmx:before-request="if(document.activeElement.id === 'ollama-pull-input') this.setAttribute('data-preserve-value', document.getElementById('ollama-pull-input').value)"
+     hx-on:htmx:after-settle="let input = document.getElementById('ollama-pull-input'); let saved = this.getAttribute('data-preserve-value'); if(saved !== null) { input.value = saved; input.focus(); this.removeAttribute('data-preserve-value'); }">
     <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h5 class="fw-bold mb-0">
@@ -23,7 +26,11 @@
                     Service Inactive
                 </span>
                 {% endif %}
-                <button class="btn btn-sm btn-outline-secondary border-opacity-25" hx-get="/tool/ollama/?tab=models" hx-target="#models">
+                <button class="btn btn-sm btn-outline-secondary border-opacity-25" 
+                        hx-get="/tool/ollama/?tab=models" 
+                        hx-target="#ollama-models-container" 
+                        hx-select="#ollama-models-container" 
+                        hx-swap="morph">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
                 </button>
             </div>
@@ -42,7 +49,7 @@
             <form action="{% url 'ollama_pull_model' %}" method="POST" class="row g-2">
                 {% csrf_token %}
                 <div class="col">
-                    <input type="text" name="model_name" id="ollama-pull-input" placeholder="e.g. llama3, mistral, codellama" class="form-control bg-transparent text-main border-secondary" required hx-preserve="true">
+                    <input type="text" name="model_name" id="ollama-pull-input" placeholder="e.g. llama3, mistral, codellama" class="form-control border-secondary" required>
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
