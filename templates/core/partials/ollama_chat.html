@@ -49,6 +49,13 @@
                 </div>
 
                 <div class="mb-4">
+                    <label class="form-label small fw-bold text-muted">API Token (Cloud)</label>
+                    <input type="password" id="api-token-input-field" class="form-control form-control-sm bg-dark text-light border-secondary" 
+                           placeholder="Optional API key..."
+                           oninput="document.getElementById('api-token-input').value = this.value;">
+                </div>
+
+                <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">System Prompt</label>
                     <textarea id="system-prompt-textarea" class="form-control form-control-sm bg-dark text-light border-secondary" 
                               style="resize: none; height: 80px;" placeholder="Optional system instructions..."
@@ -125,6 +132,7 @@
                     <input type="hidden" id="history-input" name="history" value="[]">
                     <input type="hidden" id="form-model-input" name="model" value="">
                     <input type="hidden" id="system-prompt-input" name="system_prompt" value="">
+                    <input type="hidden" id="api-token-input" name="api_token" value="">
                     <input type="hidden" id="user-role-input" name="user_role" value="user">
                     <input type="hidden" id="temperature-input" name="temperature" value="0.7">
                     <input type="hidden" id="top_p-input" name="top_p" value="0.9">
@@ -262,6 +270,7 @@
             var numCtx = document.getElementById('ctx-select').value;
             var system = document.getElementById('system-prompt-textarea').value;
             var role = document.getElementById('user-role-select').value;
+            var token = document.getElementById('api-token-input-field').value;
             
             var messages = [];
             if (system) messages.push({role: 'system', content: system});
@@ -279,14 +288,17 @@
             };
 
             var jsonPayload = JSON.stringify(payload, null, 2);
+            var headerSnippet = token ? `-H "Authorization: Bearer ${token}" ` : "";
 
             // cURL
-            document.getElementById('code-curl').innerText = `curl http://localhost:11434/api/chat -d '${jsonPayload}'`;
+            document.getElementById('code-curl').innerText = `curl http://localhost:11434/api/chat ${headerSnippet}-d '${jsonPayload}'`;
 
             // Python
+            var pythonHeaders = token ? `, headers={'Authorization': 'Bearer ${token}'}` : "";
             document.getElementById('code-python').innerText = `import ollama
 
-response = ollama.chat(
+client = ollama.Client(host='http://localhost:11434'${pythonHeaders})
+response = client.chat(
     model='${model}',
     messages=${JSON.stringify(messages, null, 4)},
     options={
@@ -298,9 +310,11 @@ response = ollama.chat(
 print(response['message']['content'])`;
 
             // Node.js
+            var nodeHeaders = token ? `, headers: { 'Authorization': 'Bearer ${token}' }` : "";
             document.getElementById('code-nodejs').innerText = `import ollama from 'ollama'
 
-const response = await ollama.chat({
+const client = new ollama.Ollama({ host: 'http://localhost:11434'${nodeHeaders} })
+const response = await client.chat({
   model: '${model}',
   messages: ${JSON.stringify(messages, null, 2)},
   options: {

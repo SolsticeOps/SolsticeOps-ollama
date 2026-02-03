@@ -71,6 +71,7 @@ def chat_send(request):
             total_tokens = int(request.POST.get('total_tokens', 0))
             system_prompt = request.POST.get('system_prompt', '').strip()
             user_role = request.POST.get('user_role', 'user').strip()
+            api_token = request.POST.get('api_token', '').strip()
         except (ValueError, TypeError) as e:
             return HttpResponse(f"Invalid parameter value: {str(e)}", status=400)
         
@@ -94,7 +95,11 @@ def chat_send(request):
             api_messages.append({"role": m["role"], "content": m["content"]})
         
         try:
-            client = ollama.Client(host='http://localhost:11434')
+            headers = {}
+            if api_token:
+                headers["Authorization"] = f"Bearer {api_token}"
+                
+            client = ollama.Client(host='http://localhost:11434', headers=headers)
             response = client.chat(
                 model=model,
                 messages=api_messages,
@@ -132,8 +137,8 @@ def chat_send(request):
         except Exception as e:
             error_msg = str(e)
             # Check for common Ollama errors
-            if "unauthorized" in error_msg.lower():
-                error_msg = "Ollama is unauthorized to use this model. You might need to sign in via 'ollama box' or use a local model."
+            if "unauthorized" in error_msg.lower() or "401" in error_msg:
+                error_msg = "Ollama is unauthorized to use this model. If this is a cloud model, please provide an API Token in the settings sidebar."
             
             return render(request, 'core/partials/ollama_chat_messages.html', {
                 'error': error_msg, 
