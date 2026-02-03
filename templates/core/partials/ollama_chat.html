@@ -1,4 +1,11 @@
-<div class="row g-3" id="ollama-chat-root" style="height: calc(100vh - 500px); min-height: 500px;">
+<div class="row g-3" id="ollama-chat-root" style="height: calc(100vh - 250px); min-height: 500px;">
+    <!-- Highlight.js for Request Preview -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+
     <!-- Settings Sidebar -->
     <div class="col-md-3 h-100">
         <div class="card shadow-sm border-0 h-100 overflow-y-auto">
@@ -179,13 +186,13 @@
                 </ul>
                 <div class="tab-content p-3">
                     <div class="tab-pane fade show active" id="preview-curl">
-                        <pre class="bg-black p-3 rounded small text-info mb-0 overflow-x-auto"><code id="code-curl"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-curl" class="language-bash"></code></pre>
                     </div>
                     <div class="tab-pane fade" id="preview-python">
-                        <pre class="bg-black p-3 rounded small text-success mb-0 overflow-x-auto"><code id="code-python"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-python" class="language-python"></code></pre>
                     </div>
                     <div class="tab-pane fade" id="preview-nodejs">
-                        <pre class="bg-black p-3 rounded small text-warning mb-0 overflow-x-auto"><code id="code-nodejs"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-nodejs" class="language-javascript"></code></pre>
                     </div>
                 </div>
             </div>
@@ -324,6 +331,12 @@ const response = await client.chat({
   }
 })
 console.log(response.message.content)`;
+
+            // Apply highlighting
+            document.querySelectorAll('#requestPreviewModal pre code').forEach((block) => {
+                delete block.dataset.highlighted;
+                hljs.highlightElement(block);
+            });
 
             var modal = new bootstrap.Modal(document.getElementById('requestPreviewModal'));
             modal.show();
