@@ -115,10 +115,10 @@
                         </button>
                     </div>
                     
-                    <div id="chat-indicator" class="htmx-indicator position-absolute top-0 start-50 translate-middle-x" style="margin-top: -40px;">
+                    <div id="chat-indicator" class="htmx-indicator position-absolute top-0 start-50 translate-middle-x" style="margin-top: -40px; z-index: 10;">
                         <div class="bg-primary text-white px-3 py-2 rounded-pill shadow-lg small d-flex align-items-center gap-2">
                             <div class="spinner-border spinner-border-sm" role="status"></div>
-                            <span>Ollama is thinking...</span>
+                            <span id="thinking-text">Ollama is thinking...</span>
                         </div>
                     </div>
                 </form>
@@ -128,56 +128,69 @@
 </div>
 
 <script>
-    function handleFormSubmit(form) {
-        const textarea = form.querySelector('textarea');
-        const userMsg = textarea.value;
-        
-        // Append user message immediately for responsiveness
-        const container = document.getElementById('chat-history-container');
-        const userHtml = `
-            <div class="d-flex mb-4 flex-row-reverse">
-                <div class="flex-shrink-0 ms-3">
-                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                        <i class="bi bi-person text-white"></i>
-                    </div>
-                </div>
-                <div class="flex-grow-1 text-end d-flex flex-column align-items-end">
-                    <div class="fw-bold small mb-1">You</div>
-                    <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-light small shadow-sm" style="max-width: 85%; text-align: left;">
-                        ${userMsg.replace(/\n/g, '<br>')}
-                    </div>
-                </div>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', userHtml);
-        container.scrollTop = container.scrollHeight;
-        
-        setTimeout(() => { textarea.value = ''; }, 10);
-    }
-
-    function clearChat() {
-        if (confirm('Clear chat history?')) {
-            document.getElementById('chat-history-container').innerHTML = '';
-            document.getElementById('history-input').value = '[]';
-            document.getElementById('total-tokens-input').value = '0';
-            document.getElementById('total-tokens-display').innerText = '0';
+    (function() {
+        function updateModel() {
+            var modelSelect = document.getElementById('chat-model-select');
+            var modelInput = document.getElementById('form-model-input');
+            var thinkingText = document.getElementById('thinking-text');
+            
+            if (modelSelect && modelInput) {
+                modelInput.value = modelSelect.value;
+                if (thinkingText) {
+                    thinkingText.innerText = modelSelect.value + ' is thinking...';
+                }
+            }
         }
-    }
 
-    // Initialize model input
-    const modelSelect = document.getElementById('chat-model-select');
-    const modelInput = document.getElementById('form-model-input');
-    if (modelSelect) {
-        modelInput.value = modelSelect.value;
-        modelSelect.addEventListener('change', (e) => {
-            modelInput.value = e.target.value;
-        });
-    }
+        var modelSelect = document.getElementById('chat-model-select');
+        if (modelSelect) {
+            modelSelect.addEventListener('change', updateModel);
+            updateModel(); // Initial set
+        }
 
-    // Scroll chat to bottom on updates (HTMX)
-    const chatContainer = document.getElementById('chat-history-container');
-    const observer = new MutationObserver(() => {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    });
-    observer.observe(chatContainer, { childList: true });
+        // Global functions if they don't exist
+        window.handleFormSubmit = window.handleFormSubmit || function(form) {
+            var textarea = form.querySelector('textarea');
+            var userMsg = textarea.value;
+            
+            var container = document.getElementById('chat-history-container');
+            var userHtml = `
+                <div class="d-flex mb-4 flex-row-reverse">
+                    <div class="flex-shrink-0 ms-3">
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                            <i class="bi bi-person text-white"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 text-end d-flex flex-column align-items-end">
+                        <div class="fw-bold small mb-1">You</div>
+                        <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-light small shadow-sm" style="max-width: 85%; text-align: left;">
+                            ${userMsg.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', userHtml);
+            container.scrollTop = container.scrollHeight;
+            
+            setTimeout(() => { textarea.value = ''; }, 10);
+        };
+
+        window.clearChat = window.clearChat || function() {
+            if (confirm('Clear chat history?')) {
+                document.getElementById('chat-history-container').innerHTML = '';
+                document.getElementById('history-input').value = '[]';
+                document.getElementById('total-tokens-input').value = '0';
+                document.getElementById('total-tokens-display').innerText = '0';
+            }
+        };
+
+        // Scroll chat to bottom on updates (HTMX)
+        var chatContainer = document.getElementById('chat-history-container');
+        if (chatContainer) {
+            var observer = new MutationObserver(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+            observer.observe(chatContainer, { childList: true });
+        }
+    })();
 </script>
