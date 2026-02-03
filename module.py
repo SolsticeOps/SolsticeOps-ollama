@@ -85,8 +85,17 @@ class Module(BaseModule):
         return "simpleicons-ollama"
 
     def get_custom_icon_svg(self):
-        return """
-        <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9.307 0C13.11 0 15.14 2.19 15.14 5.742v1.834c0 .412-.033.812-.094 1.197.63-.34 1.343-.543 2.1-.543 2.44 0 3.547 1.43 3.547 3.61v6.43c0 .41-.03.81-.09 1.19.63-.34 1.34-.54 2.1-.54 1.15 0 1.8.48 1.8 1.35v.47c0 .87-.65 1.35-1.8 1.35-.76 0-1.47-.2-2.1-.54.06.38.09.78.09 1.19v.47c0 .87-.65 1.35-1.8 1.35s-1.8-.48-1.8-1.35v-.47c0-.41.03-.81.09-1.19-.63.34-1.34.54-2.1.54-2.44 0-3.547-1.43-3.547-3.61v-6.43c0-.41.03-.81.09-1.19-.63.34-1.34.54-2.1.54-3.8 0-5.83-2.19-5.83-5.742V5.742C3.477 2.19 5.507 0 9.307 0zm0 3.31c-1.63 0-2.227.91-2.227 2.432v6.516c0 1.522.597 2.432 2.227 2.432 1.63 0 2.227-.91 2.227-2.432V5.742c0-1.522-.597-2.432-2.227-2.432zm7.833 8.3c-1.15 0-1.447.61-1.447 1.71v6.43c0 1.1.297 1.71 1.447 1.71 1.15 0 1.447-.61 1.447-1.71v-6.43c0-1.1-.297-1.71-1.447-1.71z"/>
-        </svg>
-        """
+        import os
+        from django.conf import settings
+        
+        # Path to the SVG file within the module's static directory
+        svg_path = os.path.join(os.path.dirname(__file__), 'static', 'ollama.svg')
+        
+        try:
+            if os.path.exists(svg_path):
+                with open(svg_path, 'r') as f:
+                    return f.read()
+        except Exception as e:
+            logger.error(f"Failed to read custom icon SVG for Ollama: {e}")
+            
+        return None
