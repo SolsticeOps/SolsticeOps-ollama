@@ -1,4 +1,4 @@
-<div class="row g-3" id="ollama-chat-root" style="height: calc(100vh - 250px); min-height: 500px;">
+<div class="row g-3" id="ollama-chat-root" style="height: calc(100vh - 150px); min-height: 500px;">
     <!-- Highlight.js for Request Preview -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -186,13 +186,13 @@
                 </ul>
                 <div class="tab-content p-3">
                     <div class="tab-pane fade show active" id="preview-curl">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-curl" class="language-bash"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto" style="white-space: pre-wrap;"><code id="code-curl" class="language-bash"></code></pre>
                     </div>
                     <div class="tab-pane fade" id="preview-python">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-python" class="language-python"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto" style="white-space: pre-wrap;"><code id="code-python" class="language-python"></code></pre>
                     </div>
                     <div class="tab-pane fade" id="preview-nodejs">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-nodejs" class="language-javascript"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto" style="white-space: pre-wrap;"><code id="code-nodejs" class="language-javascript"></code></pre>
                     </div>
                 </div>
             </div>
@@ -295,42 +295,40 @@
             };
 
             var jsonPayload = JSON.stringify(payload, null, 2);
-            var headerSnippet = token ? `-H "Authorization: Bearer ${token}" ` : "";
+            var headerSnippet = token ? `-H "Authorization: Bearer ${token}" \\\n  ` : "";
 
             // cURL
-            document.getElementById('code-curl').innerText = `curl http://localhost:11434/api/chat ${headerSnippet}-d '${jsonPayload}'`;
+            document.getElementById('code-curl').innerText = `curl http://localhost:11434/api/chat \\\n  ${headerSnippet}-d '${jsonPayload}'`;
 
             // Python
             var pythonHeaders = token ? `, headers={'Authorization': 'Bearer ${token}'}` : "";
-            document.getElementById('code-python').innerText = `import ollama
-
-client = ollama.Client(host='http://localhost:11434'${pythonHeaders})
-response = client.chat(
-    model='${model}',
-    messages=${JSON.stringify(messages, null, 4)},
-    options={
-        'temperature': ${temp},
-        'top_p': ${topP},
-        'num_ctx': ${numCtx}
-    }
-)
-print(response['message']['content'])`;
+            document.getElementById('code-python').innerText = `import ollama\n\n` +
+`client = ollama.Client(host='http://localhost:11434'${pythonHeaders})\n` +
+`response = client.chat(\n` +
+`    model='${model}',\n` +
+`    messages=${JSON.stringify(messages, null, 4)},\n` +
+`    options={\n` +
+`        'temperature': ${temp},\n` +
+`        'top_p': ${topP},\n` +
+`        'num_ctx': ${numCtx}\n` +
+`    }\n` +
+`)\n` +
+`print(response['message']['content'])`;
 
             // Node.js
             var nodeHeaders = token ? `, headers: { 'Authorization': 'Bearer ${token}' }` : "";
-            document.getElementById('code-nodejs').innerText = `import ollama from 'ollama'
-
-const client = new ollama.Ollama({ host: 'http://localhost:11434'${nodeHeaders} })
-const response = await client.chat({
-  model: '${model}',
-  messages: ${JSON.stringify(messages, null, 2)},
-  options: {
-    temperature: ${temp},
-    top_p: ${topP},
-    num_ctx: ${numCtx}
-  }
-})
-console.log(response.message.content)`;
+            document.getElementById('code-nodejs').innerText = `import ollama from 'ollama'\n\n` +
+`const client = new ollama.Ollama({ host: 'http://localhost:11434'${nodeHeaders} })\n` +
+`const response = await client.chat({\n` +
+`  model: '${model}',\n` +
+`  messages: ${JSON.stringify(messages, null, 2)},\n` +
+`  options: {\n` +
+`    temperature: ${temp},\n` +
+`    top_p: ${topP},\n` +
+`    num_ctx: ${numCtx}\n` +
+`  }\n` +
+`})\n` +
+`console.log(response.message.content)`;
 
             // Apply highlighting
             document.querySelectorAll('#requestPreviewModal pre code').forEach((block) => {
