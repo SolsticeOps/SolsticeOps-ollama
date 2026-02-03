@@ -158,9 +158,12 @@ def chat_send(request):
                 
                 new_total_tokens = total_tokens + message_tokens
                 
-                # Ensure ascii=False for the full content too
+                # Encode once for JS string literal, keeping characters
                 safe_full_content = json.dumps(full_content, ensure_ascii=False)
-                safe_history = json.dumps(json.dumps(history_list, ensure_ascii=False), ensure_ascii=False)
+                # For history, we want the input value to be a JSON string.
+                # We encode the list to JSON, then encode that string as a JS string literal.
+                history_json_str = json.dumps(history_list, ensure_ascii=False)
+                safe_history_js_val = json.dumps(history_json_str, ensure_ascii=False)
 
                 yield f'<script>' \
                       f'var container = document.getElementById("streaming-response-container");' \
@@ -170,7 +173,7 @@ def chat_send(request):
                       f'container.removeAttribute("id");' \
                       f'if(window.renderMarkdown) window.renderMarkdown(target);' \
                       f'target.setAttribute("data-rendered", "true");' \
-                      f'document.getElementById("history-input").value = {safe_history};' \
+                      f'document.getElementById("history-input").value = {safe_history_js_val};' \
                       f'document.getElementById("total-tokens-input").value = "{new_total_tokens}";' \
                       f'document.getElementById("total-tokens-display").innerText = "{new_total_tokens}";' \
                       f'</script>'

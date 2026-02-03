@@ -232,6 +232,21 @@
             if (typeof marked === 'undefined') return;
             let rawContent = element.getAttribute('data-raw-content') || element.textContent;
             
+            // If the content is still escaped (e.g. contains literal \n or \uXXXX),
+            // it might be because of how it was stored/transmitted.
+            // But we should try to handle it gracefully.
+            if (rawContent.includes('\\n') || rawContent.includes('\\u')) {
+                try {
+                    // Only unescape if it looks like a JSON-escaped string
+                    // This is a bit risky but helps with raw output
+                    if (rawContent.startsWith('"') && rawContent.endsWith('"')) {
+                        rawContent = JSON.parse(rawContent);
+                    } else {
+                        rawContent = JSON.parse('"' + rawContent.replace(/"/g, '\\"') + '"');
+                    }
+                } catch (e) {}
+            }
+
             if (!element.getAttribute('data-raw-content')) {
                 element.setAttribute('data-raw-content', rawContent);
             }
