@@ -41,7 +41,14 @@ class Module(BaseModule):
                 import ollama
                 client = ollama.Client(host='http://localhost:11434')
                 models_response = client.list()
-                context['models'] = models_response.get('models', [])
+                
+                # Handle both dict and object responses
+                if hasattr(models_response, 'models'):
+                    context['models'] = models_response.models
+                elif isinstance(models_response, dict):
+                    context['models'] = models_response.get('models', [])
+                else:
+                    context['models'] = []
             except Exception as e:
                 context['ollama_error'] = f"Could not connect to Ollama API: {str(e)}"
         return context

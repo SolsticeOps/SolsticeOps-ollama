@@ -11,7 +11,7 @@
                     <label class="form-label small fw-bold text-muted">Selected Model</label>
                     <select id="chat-model-select" class="form-select form-select-sm bg-dark text-light border-secondary">
                         {% for model in models %}
-                        <option value="{{ model.model|default:model.name }}">{{ model.model|default:model.name }}</option>
+                        <option value="{{ model.model }}">{{ model.model }}</option>
                         {% empty %}
                         <option disabled selected>No models available</option>
                         {% endfor %}
