@@ -22,15 +22,28 @@ class Module(BaseModule):
 
     def get_context_data(self, request, tool):
         context = {}
+        
+        # Check service status
+        try:
+            status_process = subprocess.run(["systemctl", "is-active", "ollama"], capture_output=True, text=True)
+            context['service_active'] = (status_process.stdout.strip() == "active")
+            
+            # If service is active but tool status is not 'installed', we might want to sync it
+            if context['service_active'] and tool.status == 'not_installed':
+                tool.status = 'installed'
+                tool.save()
+        except Exception:
+            context['service_active'] = False
+
         if tool.status == 'installed':
             try:
-                response = requests.get("http://localhost:11434/api/tags", timeout=5)
+                response = requests.get("http://localhost:11434/api/tags", timeout=2)
                 if response.status_code == 200:
                     context['models'] = response.json().get('models', [])
                 else:
                     context['ollama_error'] = f"Ollama API returned status {response.status_code}"
             except Exception as e:
-                context['ollama_error'] = f"Could not connect to Ollama: {str(e)}"
+                context['ollama_error'] = f"Could not connect to Ollama API: {str(e)}"
         return context
 
     def handle_hx_request(self, request, tool, target):
