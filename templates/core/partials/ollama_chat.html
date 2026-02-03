@@ -5,6 +5,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <!-- Settings Sidebar -->
     <div class="col-md-3 h-100">
@@ -74,7 +75,7 @@
                     <select id="user-role-select" class="form-select form-select-sm bg-dark text-light border-secondary"
                             onchange="document.getElementById('user-role-input').value = this.value;">
                         <option value="user" selected>User</option>
-                        <option value="assistant">Assistant (Simulate)</option>
+                        <option value="assistant">Assistant</option>
                     </select>
                 </div>
 
@@ -120,7 +121,7 @@
                         </div>
                         <div class="flex-grow-1">
                             <div class="fw-bold small mb-1">Ollama</div>
-                            <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm" style="max-width: 85%;">
+                            <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm markdown-content" style="max-width: 85%;">
                                 Hello! I'm ready to help. You can configure my parameters on the left and start chatting.
                             </div>
                         </div>
@@ -211,6 +212,26 @@
         var root = document.getElementById('ollama-chat-root');
         if (!root) return;
 
+        // Configure Marked
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                breaks: true,
+                gfm: true
+            });
+        }
+
+        function renderMarkdown(element) {
+            if (typeof marked === 'undefined') return;
+            const rawContent = element.getAttribute('data-raw-content') || element.textContent;
+            if (!element.getAttribute('data-raw-content')) {
+                element.setAttribute('data-raw-content', rawContent);
+            }
+            element.innerHTML = marked.parse(rawContent.trim());
+            element.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+
         function updateModel() {
             var modelSelect = document.getElementById('chat-model-select');
             var modelInput = document.getElementById('form-model-input');
@@ -247,8 +268,8 @@
                     </div>
                     <div class="flex-grow-1 text-end d-flex flex-column align-items-end">
                         <div class="fw-bold small mb-1">You</div>
-                        <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-light small shadow-sm" style="max-width: 85%; text-align: left;">
-                            ${userMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>')}
+                        <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-light small shadow-sm markdown-content" style="max-width: 85%; text-align: left;">
+                            ${userMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}
                         </div>
                     </div>
                 </div>
@@ -361,9 +382,21 @@
         if (chatContainer) {
             var observer = new MutationObserver(() => {
                 chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+                // Render markdown for new messages
+                chatContainer.querySelectorAll('.markdown-content:not([data-rendered])').forEach((el) => {
+                    renderMarkdown(el);
+                    el.setAttribute('data-rendered', 'true');
+                });
             });
             observer.observe(chatContainer, { childList: true });
         }
+
+        // Initial render for welcome message or existing history
+        document.querySelectorAll('.markdown-content:not([data-rendered])').forEach((el) => {
+            renderMarkdown(el);
+            el.setAttribute('data-rendered', 'true');
+        });
     })();
 </script>
 
@@ -377,6 +410,22 @@
     }
     #requestPreviewModal pre code {
         white-space: pre !important;
+    }
+    .markdown-content pre {
+        background-color: rgba(0,0,0,0.3);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+    }
+    .markdown-content code {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9em;
+    }
+    .markdown-content p:last-child {
+        margin-bottom: 0;
+    }
+    .markdown-content ul, .markdown-content ol {
+        padding-left: 1.5rem;
     }
     #chat-history-container::-webkit-scrollbar {
         width: 6px;

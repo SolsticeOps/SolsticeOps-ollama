@@ -22,8 +22,8 @@
     </div>
     <div class="flex-grow-1">
         <div class="fw-bold small mb-1">Ollama <span class="text-muted fw-normal">({{ model }})</span></div>
-        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm" style="max-width: 85%;">
-            {{ msg.content|linebreaksbr }}
+        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm markdown-content" style="max-width: 85%;">
+            {{ msg.content }}
         </div>
         <div class="mt-1 small text-muted" style="font-size: 10px;">
             <i class="bi bi-cpu me-1"></i> {{ message_tokens }} tokens
