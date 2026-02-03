@@ -137,6 +137,7 @@
                       hx-target="#chat-history-container" 
                       hx-swap="beforeend"
                       hx-indicator="#chat-indicator"
+                      hx-request='{"timeout": 120000}'
                       onsubmit="document.getElementById('ollama-chat-root').handleFormSubmit(this)"
                       class="position-relative">
                     {% csrf_token %}
