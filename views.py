@@ -37,18 +37,21 @@ def chat_send(request):
         history = request.POST.get('history', '[]')
         
         # LLM Parameters
-        temperature = float(request.POST.get('temperature', 0.7))
-        top_p = float(request.POST.get('top_p', 0.9))
-        num_ctx = int(request.POST.get('num_ctx', 4096))
-        total_tokens = int(request.POST.get('total_tokens', 0))
+        try:
+            temperature = float(request.POST.get('temperature', 0.7))
+            top_p = float(request.POST.get('top_p', 0.9))
+            num_ctx = int(request.POST.get('num_ctx', 4096))
+            total_tokens = int(request.POST.get('total_tokens', 0))
+        except (ValueError, TypeError) as e:
+            return HttpResponse(f"Invalid parameter value: {str(e)}", status=400)
         
         try:
             history_list = json.loads(history)
-        except:
+        except Exception as e:
             history_list = []
             
         if not model or not message:
-            return HttpResponse("Model and message are required", status=400)
+            return HttpResponse(f"Model and message are required (Model: {model}, Message: {message})", status=400)
             
         history_list.append({"role": "user", "content": message})
         
@@ -72,7 +75,7 @@ def chat_send(request):
                 result = response.json()
                 assistant_message = result.get('message', {}).get('content', '')
                 
-                # Token counts from Ollama
+                # Token counts from Ollama (might be missing if cached)
                 prompt_tokens = result.get('prompt_eval_count', 0)
                 completion_tokens = result.get('eval_count', 0)
                 message_tokens = prompt_tokens + completion_tokens
@@ -93,8 +96,10 @@ def chat_send(request):
                 }
                 return render(request, 'core/partials/ollama_chat_messages.html', context)
             else:
-                return HttpResponse(f"Ollama error: {response.text}", status=500)
+                return HttpResponse(f"Ollama API Error ({response.status_code}): {response.text}", status=500)
+        except requests.exceptions.Timeout:
+            return HttpResponse("Request to Ollama timed out. The model might be too large or your system is under heavy load.", status=500)
         except Exception as e:
-            return HttpResponse(f"Request failed: {str(e)}", status=500)
+            return HttpResponse(f"Internal Server Error during Ollama request: {str(e)}", status=500)
             
     return HttpResponse("Method not allowed", status=405)

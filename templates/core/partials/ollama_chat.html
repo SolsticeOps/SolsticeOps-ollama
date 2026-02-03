@@ -1,4 +1,4 @@
-<div class="row g-3 h-[calc(100vh-250px)]">
+<div class="row g-3 h-[calc(100vh-250px)]" id="ollama-chat-root">
     <!-- Settings Sidebar -->
     <div class="col-md-3 h-full">
         <div class="card shadow-sm border-0 h-full overflow-y-auto">
@@ -50,7 +50,7 @@
 
                 <div class="mt-auto pt-4 border-top border-secondary border-opacity-10">
                     <button class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2" 
-                            onclick="clearChat()">
+                            onclick="document.getElementById('ollama-chat-root').clearChat()">
                         <i class="bi bi-trash"></i> Clear History
                     </button>
                 </div>
@@ -93,7 +93,7 @@
                       hx-target="#chat-history-container" 
                       hx-swap="beforeend"
                       hx-indicator="#chat-indicator"
-                      onsubmit="handleFormSubmit(this)"
+                      onsubmit="document.getElementById('ollama-chat-root').handleFormSubmit(this)"
                       class="position-relative">
                     {% csrf_token %}
                     <input type="hidden" id="history-input" name="history" value="[]">
@@ -129,6 +129,10 @@
 
 <script>
     (function() {
+        // Use a unique namespace to avoid redeclaration issues in HTMX
+        var root = document.getElementById('ollama-chat-root');
+        if (!root) return;
+
         function updateModel() {
             var modelSelect = document.getElementById('chat-model-select');
             var modelInput = document.getElementById('form-model-input');
@@ -137,34 +141,36 @@
             if (modelSelect && modelInput) {
                 modelInput.value = modelSelect.value;
                 if (thinkingText) {
-                    thinkingText.innerText = modelSelect.value + ' is thinking...';
+                    thinkingText.innerText = modelSelect.value + ' thinks...';
                 }
             }
         }
 
         var modelSelect = document.getElementById('chat-model-select');
         if (modelSelect) {
+            modelSelect.removeEventListener('change', updateModel);
             modelSelect.addEventListener('change', updateModel);
             updateModel(); // Initial set
         }
 
-        // Global functions if they don't exist
-        window.handleFormSubmit = window.handleFormSubmit || function(form) {
+        // Define functions on the root element to avoid global scope pollution
+        root.handleFormSubmit = function(form) {
             var textarea = form.querySelector('textarea');
             var userMsg = textarea.value;
+            if (!userMsg.trim()) return;
             
             var container = document.getElementById('chat-history-container');
             var userHtml = `
-                <div class="d-flex mb-4 flex-row-reverse">
+                <div class="d-flex mb-4 flex-row-reverse animate-fade-in">
                     <div class="flex-shrink-0 ms-3">
-                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
                             <i class="bi bi-person text-white"></i>
                         </div>
                     </div>
                     <div class="flex-grow-1 text-end d-flex flex-column align-items-end">
                         <div class="fw-bold small mb-1">You</div>
                         <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-light small shadow-sm" style="max-width: 85%; text-align: left;">
-                            ${userMsg.replace(/\n/g, '<br>')}
+                            ${userMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>')}
                         </div>
                     </div>
                 </div>
@@ -175,7 +181,7 @@
             setTimeout(() => { textarea.value = ''; }, 10);
         };
 
-        window.clearChat = window.clearChat || function() {
+        root.clearChat = function() {
             if (confirm('Clear chat history?')) {
                 document.getElementById('chat-history-container').innerHTML = '';
                 document.getElementById('history-input').value = '[]';
@@ -194,3 +200,26 @@
         }
     })();
 </script>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+    #chat-history-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    #chat-history-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    #chat-history-container::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+    }
+    #chat-history-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.2);
+    }
+</style>
