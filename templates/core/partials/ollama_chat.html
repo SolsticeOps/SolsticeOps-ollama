@@ -186,13 +186,13 @@
                 </ul>
                 <div class="tab-content p-3">
                     <div class="tab-pane fade show active" id="preview-curl">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto" style="white-space: pre-wrap;"><code id="code-curl" class="language-bash"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-curl" class="language-bash"></code></pre>
                     </div>
                     <div class="tab-pane fade" id="preview-python">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto" style="white-space: pre-wrap;"><code id="code-python" class="language-python"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-python" class="language-python"></code></pre>
                     </div>
                     <div class="tab-pane fade" id="preview-nodejs">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto" style="white-space: pre-wrap;"><code id="code-nodejs" class="language-javascript"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-nodejs" class="language-javascript"></code></pre>
                     </div>
                 </div>
             </div>
@@ -295,40 +295,44 @@
             };
 
             var jsonPayload = JSON.stringify(payload, null, 2);
-            var headerSnippet = token ? `-H "Authorization: Bearer ${token}" \\\n  ` : "";
-
+            
             // cURL
-            document.getElementById('code-curl').innerText = `curl http://localhost:11434/api/chat \\\n  ${headerSnippet}-d '${jsonPayload}'`;
+            var curlCommand = `curl http://localhost:11434/api/chat \\\n` +
+                (token ? `  -H "Authorization: Bearer ${token}" \\\n` : "") +
+                `  -d '${jsonPayload}'`;
+            document.getElementById('code-curl').textContent = curlCommand;
 
             // Python
             var pythonHeaders = token ? `, headers={'Authorization': 'Bearer ${token}'}` : "";
-            document.getElementById('code-python').innerText = `import ollama\n\n` +
-`client = ollama.Client(host='http://localhost:11434'${pythonHeaders})\n` +
-`response = client.chat(\n` +
-`    model='${model}',\n` +
-`    messages=${JSON.stringify(messages, null, 4)},\n` +
-`    options={\n` +
-`        'temperature': ${temp},\n` +
-`        'top_p': ${topP},\n` +
-`        'num_ctx': ${numCtx}\n` +
-`    }\n` +
-`)\n` +
-`print(response['message']['content'])`;
+            var pythonCode = `import ollama\n\n` +
+                `client = ollama.Client(host='http://localhost:11434'${pythonHeaders})\n` +
+                `response = client.chat(\n` +
+                `    model='${model}',\n` +
+                `    messages=${JSON.stringify(messages, null, 4)},\n` +
+                `    options={\n` +
+                `        'temperature': ${temp},\n` +
+                `        'top_p': ${topP},\n` +
+                `        'num_ctx': ${numCtx}\n` +
+                `    }\n` +
+                `)\n` +
+                `print(response['message']['content'])`;
+            document.getElementById('code-python').textContent = pythonCode;
 
             // Node.js
             var nodeHeaders = token ? `, headers: { 'Authorization': 'Bearer ${token}' }` : "";
-            document.getElementById('code-nodejs').innerText = `import ollama from 'ollama'\n\n` +
-`const client = new ollama.Ollama({ host: 'http://localhost:11434'${nodeHeaders} })\n` +
-`const response = await client.chat({\n` +
-`  model: '${model}',\n` +
-`  messages: ${JSON.stringify(messages, null, 2)},\n` +
-`  options: {\n` +
-`    temperature: ${temp},\n` +
-`    top_p: ${topP},\n` +
-`    num_ctx: ${numCtx}\n` +
-`  }\n` +
-`})\n` +
-`console.log(response.message.content)`;
+            var nodeCode = `import ollama from 'ollama'\n\n` +
+                `const client = new ollama.Ollama({ host: 'http://localhost:11434'${nodeHeaders} })\n` +
+                `const response = await client.chat({\n` +
+                `  model: '${model}',\n` +
+                `  messages: ${JSON.stringify(messages, null, 2)},\n` +
+                `  options: {\n` +
+                `    temperature: ${temp},\n` +
+                `    top_p: ${topP},\n` +
+                `    num_ctx: ${numCtx}\n` +
+                `  }\n` +
+                `})\n` +
+                `console.log(response.message.content)`;
+            document.getElementById('code-nodejs').textContent = nodeCode;
 
             // Apply highlighting
             document.querySelectorAll('#requestPreviewModal pre code').forEach((block) => {
@@ -343,7 +347,7 @@
         window.copySnippet = function() {
             var activeTab = document.querySelector('#requestPreviewModal .tab-pane.active code');
             if (activeTab) {
-                navigator.clipboard.writeText(activeTab.innerText).then(() => {
+                navigator.clipboard.writeText(activeTab.textContent).then(() => {
                     var btn = document.querySelector('#requestPreviewModal .modal-footer button');
                     var originalText = btn.innerHTML;
                     btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
@@ -370,6 +374,9 @@
     }
     .animate-fade-in {
         animation: fadeIn 0.3s ease-out forwards;
+    }
+    #requestPreviewModal pre code {
+        white-space: pre !important;
     }
     #chat-history-container::-webkit-scrollbar {
         width: 6px;
