@@ -232,15 +232,6 @@
             if (typeof marked === 'undefined') return;
             let rawContent = element.getAttribute('data-raw-content') || element.textContent;
             
-            // Try to unescape unicode characters if they look like \uXXXX
-            if (rawContent.includes('\\u')) {
-                try {
-                    rawContent = JSON.parse('"' + rawContent.replace(/"/g, '\\"') + '"');
-                } catch (e) {
-                    console.warn("Failed to unescape unicode:", e);
-                }
-            }
-
             if (!element.getAttribute('data-raw-content')) {
                 element.setAttribute('data-raw-content', rawContent);
             }

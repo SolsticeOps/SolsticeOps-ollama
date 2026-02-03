@@ -136,18 +136,18 @@ def chat_send(request):
                     content = chunk.get('message', {}).get('content', '')
                     full_content += content
                     
-                    # Escape content for JS
-                    safe_content = json.dumps(content)
+                    if chunk.get('done'):
+                        prompt_tokens = chunk.get('prompt_eval_count', 0)
+                        completion_tokens = chunk.get('eval_count', 0)
+                        message_tokens = prompt_tokens + completion_tokens
+
+                    # Use ensure_ascii=False to keep Cyrillic characters
+                    safe_content = json.dumps(content, ensure_ascii=False)
                     # Use a script to append content to the target div and trigger scrolling
                     yield f'<script>' \
                           f'document.getElementById("streaming-text-target").textContent += {safe_content};' \
                           f'document.getElementById("chat-history-container").scrollTop = document.getElementById("chat-history-container").scrollHeight;' \
                           f'</script>'
-                    
-                    if chunk.get('done'):
-                        prompt_tokens = chunk.get('prompt_eval_count', 0)
-                        completion_tokens = chunk.get('eval_count', 0)
-                        message_tokens = prompt_tokens + completion_tokens
                 
                 # Finalize the message: render markdown, update history, tokens, etc.
                 history_list.append({
@@ -158,15 +158,19 @@ def chat_send(request):
                 
                 new_total_tokens = total_tokens + message_tokens
                 
+                # Ensure ascii=False for the full content too
+                safe_full_content = json.dumps(full_content, ensure_ascii=False)
+                safe_history = json.dumps(json.dumps(history_list, ensure_ascii=False), ensure_ascii=False)
+
                 yield f'<script>' \
                       f'var container = document.getElementById("streaming-response-container");' \
                       f'var target = document.getElementById("streaming-text-target");' \
-                      f'target.setAttribute("data-raw-content", {json.dumps(full_content)});' \
+                      f'target.setAttribute("data-raw-content", {safe_full_content});' \
                       f'target.removeAttribute("id");' \
                       f'container.removeAttribute("id");' \
                       f'if(window.renderMarkdown) window.renderMarkdown(target);' \
                       f'target.setAttribute("data-rendered", "true");' \
-                      f'document.getElementById("history-input").value = {json.dumps(json.dumps(history_list))};' \
+                      f'document.getElementById("history-input").value = {safe_history};' \
                       f'document.getElementById("total-tokens-input").value = "{new_total_tokens}";' \
                       f'document.getElementById("total-tokens-display").innerText = "{new_total_tokens}";' \
                       f'</script>'
