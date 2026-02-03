@@ -20,6 +20,16 @@ class Module(BaseModule):
     description = "Manage Ollama models and test them in a chat interface."
     version = "1.0.0"
 
+    def get_service_version(self):
+        try:
+            process = subprocess.run(["ollama", "--version"], capture_output=True, text=True)
+            if process.returncode == 0:
+                # Output is like "ollama version is 0.15.4"
+                return process.stdout.strip().split("is")[-1].strip()
+        except Exception:
+            pass
+        return None
+
     def get_context_data(self, request, tool):
         context = {}
         context['config_data'] = tool.config_data
