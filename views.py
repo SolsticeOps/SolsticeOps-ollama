@@ -36,6 +36,12 @@ def chat_send(request):
         message = request.POST.get('message')
         history = request.POST.get('history', '[]')
         
+        # LLM Parameters
+        temperature = float(request.POST.get('temperature', 0.7))
+        top_p = float(request.POST.get('top_p', 0.9))
+        num_ctx = int(request.POST.get('num_ctx', 4096))
+        total_tokens = int(request.POST.get('total_tokens', 0))
+        
         try:
             history_list = json.loads(history)
         except:
@@ -52,20 +58,38 @@ def chat_send(request):
                 json={
                     "model": model,
                     "messages": history_list,
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "temperature": temperature,
+                        "top_p": top_p,
+                        "num_ctx": num_ctx
+                    }
                 },
-                timeout=60
+                timeout=120
             )
             
             if response.status_code == 200:
                 result = response.json()
                 assistant_message = result.get('message', {}).get('content', '')
-                history_list.append({"role": "assistant", "content": assistant_message})
+                
+                # Token counts from Ollama
+                prompt_tokens = result.get('prompt_eval_count', 0)
+                completion_tokens = result.get('eval_count', 0)
+                message_tokens = prompt_tokens + completion_tokens
+                new_total_tokens = total_tokens + message_tokens
+                
+                history_list.append({
+                    "role": "assistant", 
+                    "content": assistant_message,
+                    "tokens": message_tokens
+                })
                 
                 context = {
                     'history_json': json.dumps(history_list),
                     'history': history_list,
-                    'model': model
+                    'model': model,
+                    'message_tokens': message_tokens,
+                    'total_tokens': new_total_tokens
                 }
                 return render(request, 'core/partials/ollama_chat_messages.html', context)
             else:

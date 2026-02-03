@@ -1,66 +1,170 @@
-<div class="card bg-base-200 shadow-xl h-[calc(100vh-250px)]">
-    <div class="card-body flex flex-col h-full">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="card-title text-2xl">
-                <i class="fas fa-comments mr-2"></i>
-                Demo Chat
-            </h2>
-            <div class="flex items-center gap-4">
-                <label class="label cursor-pointer gap-2">
-                    <span class="label-text font-semibold">Model:</span>
-                    <select id="chat-model-select" name="model" class="select select-bordered select-sm">
+<div class="row g-3 h-[calc(100vh-250px)]">
+    <!-- Settings Sidebar -->
+    <div class="col-md-3 h-full">
+        <div class="card shadow-sm border-0 h-full overflow-y-auto">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-4 d-flex align-items-center">
+                    <i class="bi bi-sliders me-2"></i> LLM Settings
+                </h6>
+                
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-muted">Selected Model</label>
+                    <select id="chat-model-select" class="form-select form-select-sm bg-dark text-light border-secondary">
                         {% for model in models %}
                         <option value="{{ model.name }}">{{ model.name }}</option>
                         {% empty %}
                         <option disabled selected>No models available</option>
                         {% endfor %}
                     </select>
-                </label>
-                <button class="btn btn-sm btn-ghost" onclick="document.getElementById('chat-history-container').innerHTML = ''; document.getElementById('history-input').value = '[]';">
-                    <i class="fas fa-trash-alt"></i> Clear Chat
-                </button>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between">
+                        <label class="form-label small fw-bold text-muted">Temperature</label>
+                        <span id="temp-val" class="small text-primary">0.7</span>
+                    </div>
+                    <input type="range" class="form-range" min="0" max="2" step="0.1" value="0.7" id="temp-range" 
+                           oninput="document.getElementById('temp-val').innerText = this.value; document.getElementById('temperature-input').value = this.value;">
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between">
+                        <label class="form-label small fw-bold text-muted">Top-P</label>
+                        <span id="top-p-val" class="small text-primary">0.9</span>
+                    </div>
+                    <input type="range" class="form-range" min="0" max="1" step="0.05" value="0.9" id="top-p-range"
+                           oninput="document.getElementById('top-p-val').innerText = this.value; document.getElementById('top-p-input').value = this.value;">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-muted">Context Window</label>
+                    <select id="ctx-select" class="form-select form-select-sm bg-dark text-light border-secondary"
+                            onchange="document.getElementById('num-ctx-input').value = this.value;">
+                        <option value="2048">2048 tokens</option>
+                        <option value="4096" selected>4096 tokens</option>
+                        <option value="8192">8192 tokens</option>
+                        <option value="16384">16384 tokens</option>
+                        <option value="32768">32768 tokens</option>
+                    </select>
+                </div>
+
+                <div class="mt-auto pt-4 border-top border-secondary border-opacity-10">
+                    <button class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2" 
+                            onclick="clearChat()">
+                        <i class="bi bi-trash"></i> Clear History
+                    </button>
+                </div>
             </div>
         </div>
+    </div>
 
-        <!-- Chat Area -->
-        <div id="chat-history-container" class="flex-grow overflow-y-auto bg-base-300 rounded-lg p-4 mb-4 space-y-4">
-            <div class="chat chat-assistant">
-                <div class="chat-bubble">Hello! Select a model and send a message to start testing.</div>
+    <!-- Chat Area -->
+    <div class="col-md-9 h-full">
+        <div class="card shadow-sm border-0 h-full d-flex flex-column">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
+                <h6 class="fw-bold mb-0">Chat Session</h6>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="small">
+                        <span class="text-muted">Total Usage:</span>
+                        <span id="total-tokens-display" class="fw-bold text-primary">0</span>
+                        <span class="text-muted">tokens</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="chat-history-container" class="card-body p-4 flex-grow-1 overflow-y-auto bg-black bg-opacity-25" style="min-height: 0;">
+                <div class="d-flex mb-4">
+                    <div class="flex-shrink-0 me-3">
+                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                            <i class="bi bi-robot text-white"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold small mb-1">Ollama</div>
+                        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm" style="max-width: 85%;">
+                            Hello! I'm ready to help. You can configure my parameters on the left and start chatting.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer bg-transparent p-4 border-top border-secondary border-opacity-10">
+                <form hx-post="{% url 'ollama_chat_send' %}" 
+                      hx-target="#chat-history-container" 
+                      hx-swap="beforeend"
+                      hx-indicator="#chat-indicator"
+                      onsubmit="handleFormSubmit(this)"
+                      class="position-relative">
+                    {% csrf_token %}
+                    <input type="hidden" id="history-input" name="history" value="[]">
+                    <input type="hidden" id="form-model-input" name="model" value="">
+                    <input type="hidden" id="temperature-input" name="temperature" value="0.7">
+                    <input type="hidden" id="top_p-input" name="top_p" value="0.9">
+                    <input type="hidden" id="num-ctx-input" name="num_ctx" value="4096">
+                    <input type="hidden" id="total-tokens-input" name="total_tokens" value="0">
+                    
+                    <div class="input-group shadow-sm">
+                        <textarea name="message" 
+                                  placeholder="Message Ollama..." 
+                                  class="form-control bg-dark text-light border-secondary p-3"
+                                  style="resize: none; height: 60px;"
+                                  required
+                                  onkeydown="if(event.keyCode == 13 && !event.shiftKey) { event.preventDefault(); this.form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); }"></textarea>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-send-fill fs-5"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="chat-indicator" class="htmx-indicator position-absolute top-0 start-50 translate-middle-x" style="margin-top: -40px;">
+                        <div class="bg-primary text-white px-3 py-2 rounded-pill shadow-lg small d-flex align-items-center gap-2">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <span>Ollama is thinking...</span>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
-
-        <!-- Input Area -->
-        <form hx-post="{% url 'ollama_chat_send' %}" 
-              hx-target="#chat-history-container" 
-              hx-swap="beforeend"
-              hx-indicator="#chat-indicator"
-              onsubmit="setTimeout(() => { this.querySelector('textarea').value = ''; }, 10)"
-              class="relative">
-            {% csrf_token %}
-            <input type="hidden" id="history-input" name="history" value="[]">
-            <input type="hidden" name="model" id="form-model-input">
-            
-            <div class="flex gap-2">
-                <textarea name="message" 
-                          placeholder="Type your message here..." 
-                          class="textarea textarea-bordered flex-grow resize-none h-20"
-                          required
-                          onkeydown="if(event.keyCode == 13 && !event.shiftKey) { event.preventDefault(); this.form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); }"></textarea>
-                <button type="submit" class="btn btn-primary h-20">
-                    <i class="fas fa-paper-plane text-xl"></i>
-                </button>
-            </div>
-            
-            <div id="chat-indicator" class="htmx-indicator absolute -top-10 left-1/2 -translate-x-1/2 bg-base-100 px-4 py-2 rounded-full shadow-lg border border-primary">
-                <span class="loading loading-dots loading-md"></span> 
-                <span class="ml-2 text-sm">Ollama is thinking...</span>
-            </div>
-        </form>
     </div>
 </div>
 
 <script>
-    // Update model input when select changes
+    function handleFormSubmit(form) {
+        const textarea = form.querySelector('textarea');
+        const userMsg = textarea.value;
+        
+        // Append user message immediately for responsiveness
+        const container = document.getElementById('chat-history-container');
+        const userHtml = `
+            <div class="d-flex mb-4 flex-row-reverse">
+                <div class="flex-shrink-0 ms-3">
+                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                        <i class="bi bi-person text-white"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 text-end d-flex flex-column align-items-end">
+                    <div class="fw-bold small mb-1">You</div>
+                    <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-light small shadow-sm" style="max-width: 85%; text-align: left;">
+                        ${userMsg.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', userHtml);
+        container.scrollTop = container.scrollHeight;
+        
+        setTimeout(() => { textarea.value = ''; }, 10);
+    }
+
+    function clearChat() {
+        if (confirm('Clear chat history?')) {
+            document.getElementById('chat-history-container').innerHTML = '';
+            document.getElementById('history-input').value = '[]';
+            document.getElementById('total-tokens-input').value = '0';
+            document.getElementById('total-tokens-display').innerText = '0';
+        }
+    }
+
+    // Initialize model input
     const modelSelect = document.getElementById('chat-model-select');
     const modelInput = document.getElementById('form-model-input');
     if (modelSelect) {
@@ -70,7 +174,7 @@
         });
     }
 
-    // Scroll chat to bottom on updates
+    // Scroll chat to bottom on updates (HTMX)
     const chatContainer = document.getElementById('chat-history-container');
     const observer = new MutationObserver(() => {
         chatContainer.scrollTop = chatContainer.scrollHeight;

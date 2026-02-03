@@ -1,19 +1,32 @@
-{% for msg in history|slice:"-2:" %}
-<div class="chat chat-{{ msg.role|default:'user' }}">
-    <div class="chat-header opacity-50 text-xs mb-1">
-        {{ msg.role|title }}
+{% with msg=history|last %}
+<div class="d-flex mb-4">
+    <div class="flex-shrink-0 me-3">
+        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+            <i class="bi bi-robot text-white"></i>
+        </div>
     </div>
-    <div class="chat-bubble {% if msg.role == 'assistant' %}chat-bubble-primary{% endif %} whitespace-pre-wrap">{{ msg.content }}</div>
+    <div class="flex-grow-1">
+        <div class="fw-bold small mb-1">Ollama <span class="text-muted fw-normal">({{ model }})</span></div>
+        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm" style="max-width: 85%;">
+            {{ msg.content|linebreaksbr }}
+        </div>
+        <div class="mt-1 small text-muted" style="font-size: 10px;">
+            <i class="bi bi-cpu me-1"></i> {{ message_tokens }} tokens
+        </div>
+    </div>
 </div>
-{% endfor %}
+{% endwith %}
 
 <div id="history-data-container" hx-swap-oob="true">
     <script id="history-data" type="application/json">{{ history_json|safe }}</script>
 </div>
 
+<span id="total-tokens-display" hx-swap-oob="true" class="fw-bold text-primary">{{ total_tokens }}</span>
+
 <script hx-swap-oob="true">
     (function() {
         const historyData = JSON.parse(document.getElementById('history-data').textContent);
         document.getElementById('history-input').value = JSON.stringify(historyData);
+        document.getElementById('total-tokens-input').value = "{{ total_tokens }}";
     })();
 </script>
