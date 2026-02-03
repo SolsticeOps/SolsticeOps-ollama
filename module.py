@@ -86,7 +86,6 @@ class Module(BaseModule):
 
     def get_custom_icon_svg(self):
         import os
-        from django.conf import settings
         
         # Path to the SVG file within the module's static directory
         svg_path = os.path.join(os.path.dirname(__file__), 'static', 'ollama.svg')
