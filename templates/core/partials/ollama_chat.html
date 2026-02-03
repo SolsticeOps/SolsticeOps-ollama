@@ -419,10 +419,18 @@
         white-space: pre !important;
     }
     .markdown-content pre {
-        background-color: rgba(0,0,0,0.3);
+        background-color: transparent !important;
         padding: 1rem;
         border-radius: 0.5rem;
         margin: 1rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .markdown-content pre code {
+        background-color: transparent !important;
+        padding: 0 !important;
+    }
+    .hljs {
+        background: transparent !important;
     }
     .markdown-content code {
         font-family: 'JetBrains Mono', monospace;
