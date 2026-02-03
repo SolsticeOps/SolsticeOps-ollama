@@ -69,6 +69,8 @@ def chat_send(request):
             top_p = float(request.POST.get('top_p', 0.9))
             num_ctx = int(request.POST.get('num_ctx', 4096))
             total_tokens = int(request.POST.get('total_tokens', 0))
+            system_prompt = request.POST.get('system_prompt', '').strip()
+            user_role = request.POST.get('user_role', 'user').strip()
         except (ValueError, TypeError) as e:
             return HttpResponse(f"Invalid parameter value: {str(e)}", status=400)
         
@@ -81,10 +83,15 @@ def chat_send(request):
             return HttpResponse(f"Model and message are required (Model: {model})", status=400)
             
         # Add user message to history
-        history_list.append({"role": "user", "content": message})
+        history_list.append({"role": user_role, "content": message})
         
-        # Prepare messages for Ollama (remove custom fields like 'tokens' if they exist)
-        api_messages = [{"role": m["role"], "content": m["content"]} for m in history_list]
+        # Prepare messages for Ollama
+        api_messages = []
+        if system_prompt:
+            api_messages.append({"role": "system", "content": system_prompt})
+        
+        for m in history_list:
+            api_messages.append({"role": m["role"], "content": m["content"]})
         
         try:
             client = ollama.Client(host='http://localhost:11434')

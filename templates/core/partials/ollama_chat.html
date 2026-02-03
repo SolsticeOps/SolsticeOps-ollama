@@ -48,6 +48,29 @@
                     </select>
                 </div>
 
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-muted">System Prompt</label>
+                    <textarea id="system-prompt-textarea" class="form-control form-control-sm bg-dark text-light border-secondary" 
+                              style="resize: none; height: 80px;" placeholder="Optional system instructions..."
+                              oninput="document.getElementById('system-prompt-input').value = this.value;"></textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-muted">User Role</label>
+                    <select id="user-role-select" class="form-select form-select-sm bg-dark text-light border-secondary"
+                            onchange="document.getElementById('user-role-input').value = this.value;">
+                        <option value="user" selected>User</option>
+                        <option value="assistant">Assistant (Simulate)</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <button class="btn btn-sm btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2" 
+                            onclick="document.getElementById('ollama-chat-root').showRequestPreview()">
+                        <i class="bi bi-code-slash"></i> Request Preview
+                    </button>
+                </div>
+
                 <div class="mt-auto pt-4 border-top border-secondary border-opacity-10">
                     <button class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2" 
                             onclick="document.getElementById('ollama-chat-root').clearChat()">
@@ -101,6 +124,8 @@
                     {% csrf_token %}
                     <input type="hidden" id="history-input" name="history" value="[]">
                     <input type="hidden" id="form-model-input" name="model" value="">
+                    <input type="hidden" id="system-prompt-input" name="system_prompt" value="">
+                    <input type="hidden" id="user-role-input" name="user_role" value="user">
                     <input type="hidden" id="temperature-input" name="temperature" value="0.7">
                     <input type="hidden" id="top_p-input" name="top_p" value="0.9">
                     <input type="hidden" id="num-ctx-input" name="num_ctx" value="4096">
@@ -125,6 +150,41 @@
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Request Preview Modal -->
+<div class="modal fade" id="requestPreviewModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Request Preview</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <ul class="nav nav-tabs border-secondary px-3 pt-2" role="tablist">
+                    <li class="nav-item"><button class="nav-link active py-2 small" data-bs-toggle="tab" data-bs-target="#preview-curl">cURL</button></li>
+                    <li class="nav-item"><button class="nav-link py-2 small" data-bs-toggle="tab" data-bs-target="#preview-python">Python</button></li>
+                    <li class="nav-item"><button class="nav-link py-2 small" data-bs-toggle="tab" data-bs-target="#preview-nodejs">Node.js</button></li>
+                </ul>
+                <div class="tab-content p-3">
+                    <div class="tab-pane fade show active" id="preview-curl">
+                        <pre class="bg-black p-3 rounded small text-info mb-0 overflow-x-auto"><code id="code-curl"></code></pre>
+                    </div>
+                    <div class="tab-pane fade" id="preview-python">
+                        <pre class="bg-black p-3 rounded small text-success mb-0 overflow-x-auto"><code id="code-python"></code></pre>
+                    </div>
+                    <div class="tab-pane fade" id="preview-nodejs">
+                        <pre class="bg-black p-3 rounded small text-warning mb-0 overflow-x-auto"><code id="code-nodejs"></code></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-sm btn-outline-light" onclick="copySnippet()">
+                    <i class="bi bi-clipboard me-1"></i> Copy to Clipboard
+                </button>
             </div>
         </div>
     </div>
@@ -192,6 +252,78 @@
                 document.getElementById('history-input').value = '[]';
                 document.getElementById('total-tokens-input').value = '0';
                 document.getElementById('total-tokens-display').innerText = '0';
+            }
+        };
+
+        root.showRequestPreview = function() {
+            var model = document.getElementById('chat-model-select').value;
+            var temp = document.getElementById('temp-range').value;
+            var topP = document.getElementById('top-p-range').value;
+            var numCtx = document.getElementById('ctx-select').value;
+            var system = document.getElementById('system-prompt-textarea').value;
+            var role = document.getElementById('user-role-select').value;
+            
+            var messages = [];
+            if (system) messages.push({role: 'system', content: system});
+            messages.push({role: role, content: 'Hello!'});
+
+            var payload = {
+                model: model,
+                messages: messages,
+                stream: false,
+                options: {
+                    temperature: parseFloat(temp),
+                    top_p: parseFloat(topP),
+                    num_ctx: parseInt(numCtx)
+                }
+            };
+
+            var jsonPayload = JSON.stringify(payload, null, 2);
+
+            // cURL
+            document.getElementById('code-curl').innerText = `curl http://localhost:11434/api/chat -d '${jsonPayload}'`;
+
+            // Python
+            document.getElementById('code-python').innerText = `import ollama
+
+response = ollama.chat(
+    model='${model}',
+    messages=${JSON.stringify(messages, null, 4)},
+    options={
+        'temperature': ${temp},
+        'top_p': ${topP},
+        'num_ctx': ${numCtx}
+    }
+)
+print(response['message']['content'])`;
+
+            // Node.js
+            document.getElementById('code-nodejs').innerText = `import ollama from 'ollama'
+
+const response = await ollama.chat({
+  model: '${model}',
+  messages: ${JSON.stringify(messages, null, 2)},
+  options: {
+    temperature: ${temp},
+    top_p: ${topP},
+    num_ctx: ${numCtx}
+  }
+})
+console.log(response.message.content)`;
+
+            var modal = new bootstrap.Modal(document.getElementById('requestPreviewModal'));
+            modal.show();
+        };
+
+        window.copySnippet = function() {
+            var activeTab = document.querySelector('#requestPreviewModal .tab-pane.active code');
+            if (activeTab) {
+                navigator.clipboard.writeText(activeTab.innerText).then(() => {
+                    var btn = document.querySelector('#requestPreviewModal .modal-footer button');
+                    var originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+                    setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+                });
             }
         };
 
