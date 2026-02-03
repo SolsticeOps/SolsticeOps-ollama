@@ -17,7 +17,7 @@
                 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">Selected Model</label>
-                    <select id="chat-model-select" class="form-select form-select-sm bg-dark text-light border-secondary">
+                    <select id="chat-model-select" class="form-select form-select-sm bg-transparent text-main border-secondary">
                         {% for model in models %}
                         <option value="{{ model.model }}">{{ model.model }}</option>
                         {% empty %}
@@ -25,6 +25,7 @@
                         {% endfor %}
                     </select>
                 </div>
+
 
                 <div class="mb-4">
                     <div class="d-flex justify-content-between">
@@ -46,7 +47,7 @@
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">Context Window</label>
-                    <select id="ctx-select" class="form-select form-select-sm bg-dark text-light border-secondary"
+                    <select id="ctx-select" class="form-select form-select-sm bg-transparent text-main border-secondary"
                             onchange="document.getElementById('num-ctx-input').value = this.value;">
                         <option value="2048">2048 tokens</option>
                         <option value="4096" selected>4096 tokens</option>
@@ -58,26 +59,27 @@
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">API Token (Cloud)</label>
-                    <input type="password" id="api-token-input-field" class="form-control form-control-sm bg-dark text-light border-secondary" 
+                    <input type="password" id="api-token-input-field" class="form-control form-control-sm bg-transparent text-main border-secondary" 
                            placeholder="Optional API key..."
                            oninput="document.getElementById('api-token-input').value = this.value;">
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">System Prompt</label>
-                    <textarea id="system-prompt-textarea" class="form-control form-control-sm bg-dark text-light border-secondary" 
+                    <textarea id="system-prompt-textarea" class="form-control form-control-sm bg-transparent text-main border-secondary" 
                               style="resize: none; height: 80px;" placeholder="Optional system instructions..."
                               oninput="document.getElementById('system-prompt-input').value = this.value;"></textarea>
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-muted">User Role</label>
-                    <select id="user-role-select" class="form-select form-select-sm bg-dark text-light border-secondary"
+                    <select id="user-role-select" class="form-select form-select-sm bg-transparent text-main border-secondary"
                             onchange="document.getElementById('user-role-input').value = this.value;">
                         <option value="user" selected>User</option>
                         <option value="assistant">Assistant</option>
                     </select>
                 </div>
+
 
                 <div class="mb-4">
                     <button class="btn btn-sm btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2" 
@@ -110,7 +112,7 @@
                 </div>
             </div>
             
-            <div id="chat-history-container" class="card-body p-4 flex-grow-1 overflow-y-auto bg-black bg-opacity-25" style="min-height: 0;">
+            <div id="chat-history-container" class="card-body p-4 flex-grow-1 overflow-y-auto" style="min-height: 0; background-color: var(--icon-box);">
                 <!-- Welcome Message Template -->
                 <div id="welcome-message">
                     <div class="d-flex mb-4">
@@ -121,13 +123,14 @@
                         </div>
                         <div class="flex-grow-1">
                             <div class="fw-bold small mb-1">Ollama</div>
-                            <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm markdown-content" style="max-width: 85%;">
+                            <div class="p-3 rounded-3 border border-secondary border-opacity-25 text-main small shadow-sm markdown-content" style="max-width: 85%; background-color: var(--card-bg);">
                                 Hello! I'm ready to help. You can configure my parameters on the left and start chatting.
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
 
             <div class="card-footer bg-transparent p-4 border-top border-secondary border-opacity-10">
                 <form hx-post="{% url 'ollama_chat_send' %}" 
@@ -152,7 +155,7 @@
                     <div class="input-group shadow-sm">
                         <textarea name="message" 
                                   placeholder="Message Ollama..." 
-                                  class="form-control bg-dark text-light border-secondary p-3"
+                                  class="form-control bg-transparent text-main border-secondary p-3"
                                   style="resize: none; height: 60px;"
                                   required
                                   onkeydown="if(event.keyCode == 13 && !event.shiftKey) { event.preventDefault(); this.form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); }"></textarea>
@@ -160,6 +163,7 @@
                             <i class="bi bi-send-fill fs-5"></i>
                         </button>
                     </div>
+
                     
                     <div id="chat-indicator" class="htmx-indicator position-absolute top-0 start-50 translate-middle-x" style="margin-top: -40px; z-index: 10;">
                         <div class="bg-primary text-white px-3 py-2 rounded-pill shadow-lg small d-flex align-items-center gap-2">
@@ -176,37 +180,38 @@
 <!-- Request Preview Modal -->
 <div class="modal fade" id="requestPreviewModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content bg-dark border-secondary">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-white">Request Preview</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
-                <ul class="nav nav-tabs border-secondary px-3 pt-2" role="tablist">
+                <ul class="nav nav-tabs px-3 pt-2" role="tablist">
                     <li class="nav-item"><button class="nav-link active py-2 small" data-bs-toggle="tab" data-bs-target="#preview-curl">cURL</button></li>
                     <li class="nav-item"><button class="nav-link py-2 small" data-bs-toggle="tab" data-bs-target="#preview-python">Python</button></li>
                     <li class="nav-item"><button class="nav-link py-2 small" data-bs-toggle="tab" data-bs-target="#preview-nodejs">Node.js</button></li>
                 </ul>
                 <div class="tab-content p-3">
                     <div class="tab-pane fade show active" id="preview-curl">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-curl" class="language-bash"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto text-white"><code id="code-curl" class="language-bash"></code></pre>
                     </div>
                     <div class="tab-pane fade" id="preview-python">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-python" class="language-python"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto text-white"><code id="code-python" class="language-python"></code></pre>
                     </div>
                     <div class="tab-pane fade" id="preview-nodejs">
-                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto"><code id="code-nodejs" class="language-javascript"></code></pre>
+                        <pre class="bg-black p-3 rounded small mb-0 overflow-x-auto text-white"><code id="code-nodejs" class="language-javascript"></code></pre>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-sm btn-outline-light" onclick="copySnippet()">
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copySnippet()">
                     <i class="bi bi-clipboard me-1"></i> Copy to Clipboard
                 </button>
             </div>
         </div>
     </div>
 </div>
+
 
 <script>
     (function() {

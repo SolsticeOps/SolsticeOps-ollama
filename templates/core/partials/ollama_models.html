@@ -38,12 +38,12 @@
         {% endif %}
 
         <!-- Pull Model Form -->
-        <div class="bg-dark bg-opacity-25 p-4 rounded-3 mb-4 border border-secondary border-opacity-10">
+        <div class="p-4 rounded-3 mb-4 border border-secondary border-opacity-10" style="background-color: var(--icon-box);">
             <h6 class="fw-bold mb-3 small text-uppercase text-muted letter-spacing-1">Pull New Model</h6>
             <form action="{% url 'ollama_pull_model' %}" method="POST" class="row g-2">
                 {% csrf_token %}
                 <div class="col">
-                    <input type="text" name="model_name" id="ollama-pull-input" placeholder="e.g. llama3, mistral, codellama" class="form-control bg-dark text-light border-secondary" required>
+                    <input type="text" name="model_name" id="ollama-pull-input" placeholder="e.g. llama3, mistral, codellama" class="form-control bg-transparent text-main border-secondary" required>
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
@@ -55,6 +55,7 @@
                 <span class="text-muted small">Check the <a href="https://ollama.com/library" target="_blank" class="text-primary text-decoration-none">Ollama Library</a> for available models.</span>
             </div>
         </div>
+
 
         <!-- Models Table -->
         <div class="table-responsive">
