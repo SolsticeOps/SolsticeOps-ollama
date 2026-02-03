@@ -1,7 +1,7 @@
-<div class="row g-3 h-[calc(100vh-250px)]" id="ollama-chat-root">
+<div class="row g-3" id="ollama-chat-root" style="height: calc(100vh - 250px); min-height: 500px;">
     <!-- Settings Sidebar -->
-    <div class="col-md-3 h-full">
-        <div class="card shadow-sm border-0 h-full overflow-y-auto">
+    <div class="col-md-3 h-100">
+        <div class="card shadow-sm border-0 h-100 overflow-y-auto">
             <div class="card-body p-4">
                 <h6 class="fw-bold mb-4 d-flex align-items-center">
                     <i class="bi bi-sliders me-2"></i> LLM Settings
@@ -59,8 +59,8 @@
     </div>
 
     <!-- Chat Area -->
-    <div class="col-md-9 h-full">
-        <div class="card shadow-sm border-0 h-full d-flex flex-column">
+    <div class="col-md-9 h-100">
+        <div class="card shadow-sm border-0 h-100 d-flex flex-column">
             <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
                 <h6 class="fw-bold mb-0">Chat Session</h6>
                 <div class="d-flex align-items-center gap-3">
@@ -73,16 +73,19 @@
             </div>
             
             <div id="chat-history-container" class="card-body p-4 flex-grow-1 overflow-y-auto bg-black bg-opacity-25" style="min-height: 0;">
-                <div class="d-flex mb-4">
-                    <div class="flex-shrink-0 me-3">
-                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                            <i class="bi bi-robot text-white"></i>
+                <!-- Welcome Message Template -->
+                <div id="welcome-message">
+                    <div class="d-flex mb-4">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                <i class="bi bi-robot text-white"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="fw-bold small mb-1">Ollama</div>
-                        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm" style="max-width: 85%;">
-                            Hello! I'm ready to help. You can configure my parameters on the left and start chatting.
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small mb-1">Ollama</div>
+                            <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 text-light small shadow-sm" style="max-width: 85%;">
+                                Hello! I'm ready to help. You can configure my parameters on the left and start chatting.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -183,7 +186,9 @@
 
         root.clearChat = function() {
             if (confirm('Clear chat history?')) {
-                document.getElementById('chat-history-container').innerHTML = '';
+                var container = document.getElementById('chat-history-container');
+                var welcome = document.getElementById('welcome-message').innerHTML;
+                container.innerHTML = welcome;
                 document.getElementById('history-input').value = '[]';
                 document.getElementById('total-tokens-input').value = '0';
                 document.getElementById('total-tokens-display').innerText = '0';

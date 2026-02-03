@@ -96,10 +96,13 @@ def chat_send(request):
                 }
                 return render(request, 'core/partials/ollama_chat_messages.html', context)
             else:
-                return HttpResponse(f"Ollama API Error ({response.status_code}): {response.text}", status=500)
+                error_msg = f"Ollama API Error ({response.status_code}): {response.text}"
+                return render(request, 'core/partials/ollama_chat_messages.html', {'error': error_msg, 'model': model})
         except requests.exceptions.Timeout:
-            return HttpResponse("Request to Ollama timed out. The model might be too large or your system is under heavy load.", status=500)
+            error_msg = "Request to Ollama timed out. The model might be too large or your system is under heavy load."
+            return render(request, 'core/partials/ollama_chat_messages.html', {'error': error_msg, 'model': model})
         except Exception as e:
-            return HttpResponse(f"Internal Server Error during Ollama request: {str(e)}", status=500)
+            error_msg = f"Internal Error: {str(e)}"
+            return render(request, 'core/partials/ollama_chat_messages.html', {'error': error_msg, 'model': model})
             
     return HttpResponse("Method not allowed", status=405)
