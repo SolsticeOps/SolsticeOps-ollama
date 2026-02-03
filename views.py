@@ -1,19 +1,47 @@
 import json
 import ollama
-from django.shortcuts import render, redirect
+import threading
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
+from core.models import Tool
 
 @login_required
 def pull_model(request):
     if request.method == 'POST':
         model_name = request.POST.get('model_name')
         if model_name:
-            try:
-                client = ollama.Client(host='http://localhost:11434')
-                client.pull(model_name)
-            except Exception as e:
-                return HttpResponse(f"Error pulling model: {str(e)}", status=500)
+            tool = get_object_or_404(Tool, name='ollama')
+            
+            def run_pull():
+                try:
+                    client = ollama.Client(host='http://localhost:11434')
+                    # Initialize progress
+                    tool.config_data['pulling_model'] = model_name
+                    tool.config_data['pull_progress'] = 0
+                    tool.save()
+                    
+                    for part in client.pull(model_name, stream=True):
+                        if 'completed' in part and 'total' in part:
+                            progress = int((part['completed'] / part['total']) * 100)
+                            tool.config_data['pull_progress'] = progress
+                            tool.save()
+                        elif 'status' in part:
+                            tool.config_data['pull_status'] = part['status']
+                            tool.save()
+                            
+                    # Cleanup after success
+                    tool.config_data.pop('pulling_model', None)
+                    tool.config_data.pop('pull_progress', None)
+                    tool.config_data.pop('pull_status', None)
+                    tool.save()
+                except Exception as e:
+                    tool.config_data['pull_error'] = str(e)
+                    tool.config_data.pop('pulling_model', None)
+                    tool.save()
+
+            threading.Thread(target=run_pull).start()
+            
     return redirect('/tool/ollama/?tab=models')
 
 @login_required

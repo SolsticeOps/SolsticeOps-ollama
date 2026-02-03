@@ -50,6 +50,22 @@
 
         <!-- Models Table -->
         <div class="table-responsive">
+            {% if config_data.pulling_model %}
+            <div class="mb-4 p-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-bold"><i class="bi bi-download me-2"></i> Pulling {{ config_data.pulling_model }}...</span>
+                    <span class="small fw-bold text-primary">{{ config_data.pull_progress|default:0 }}%</span>
+                </div>
+                <div class="progress bg-dark bg-opacity-50" style="height: 6px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                         style="width: {{ config_data.pull_progress|default:0 }}%"></div>
+                </div>
+                <div class="mt-2 small text-muted" style="font-size: 10px;">
+                    Status: {{ config_data.pull_status|default:"Starting..." }}
+                </div>
+            </div>
+            {% endif %}
+
             <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
@@ -68,11 +84,31 @@
                                 <div class="rounded bg-primary bg-opacity-10 p-2 me-3">
                                     <i class="bi bi-cpu text-primary"></i>
                                 </div>
-                                <span class="fw-bold">{{ model.name|slice:":-7" }}</span>
+                                <span class="fw-bold">
+                                    {% if ":" in model.name %}
+                                        {{ model.name|slice:":"|first|default:model.name }}
+                                    {% else %}
+                                        {{ model.name }}
+                                    {% endif %}
+                                </span>
                             </div>
                         </td>
-                        <td><span class="badge bg-secondary bg-opacity-10 text-muted border border-secondary border-opacity-25">{{ model.name|slice:"-6:" }}</span></td>
-                        <td class="text-muted small">{{ model.size|filesizeformat }}</td>
+                        <td>
+                            <span class="badge bg-secondary bg-opacity-10 text-muted border border-secondary border-opacity-25">
+                                {% if ":" in model.name %}
+                                    {{ model.name|split_at_colon_last }}
+                                {% else %}
+                                    latest
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="text-muted small">
+                            {% if model.size > 0 %}
+                                {{ model.size|filesizeformat }}
+                            {% else %}
+                                <span class="opacity-50">N/A</span>
+                            {% endif %}
+                        </td>
                         <td class="text-muted small">{{ model.modified_at|slice:":10" }}</td>
                         <td class="text-end">
                             <form action="{% url 'ollama_delete_model' %}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this model?')">
