@@ -1,0 +1,79 @@
+<div class="card bg-base-200 shadow-xl h-[calc(100vh-250px)]">
+    <div class="card-body flex flex-col h-full">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="card-title text-2xl">
+                <i class="fas fa-comments mr-2"></i>
+                Demo Chat
+            </h2>
+            <div class="flex items-center gap-4">
+                <label class="label cursor-pointer gap-2">
+                    <span class="label-text font-semibold">Model:</span>
+                    <select id="chat-model-select" name="model" class="select select-bordered select-sm">
+                        {% for model in models %}
+                        <option value="{{ model.name }}">{{ model.name }}</option>
+                        {% empty %}
+                        <option disabled selected>No models available</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button class="btn btn-sm btn-ghost" onclick="document.getElementById('chat-history-container').innerHTML = ''; document.getElementById('history-input').value = '[]';">
+                    <i class="fas fa-trash-alt"></i> Clear Chat
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div id="chat-history-container" class="flex-grow overflow-y-auto bg-base-300 rounded-lg p-4 mb-4 space-y-4">
+            <div class="chat chat-assistant">
+                <div class="chat-bubble">Hello! Select a model and send a message to start testing.</div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <form hx-post="{% url 'ollama_chat_send' %}" 
+              hx-target="#chat-history-container" 
+              hx-swap="beforeend"
+              hx-indicator="#chat-indicator"
+              onsubmit="setTimeout(() => { this.querySelector('textarea').value = ''; }, 10)"
+              class="relative">
+            {% csrf_token %}
+            <input type="hidden" id="history-input" name="history" value="[]">
+            <input type="hidden" name="model" id="form-model-input">
+            
+            <div class="flex gap-2">
+                <textarea name="message" 
+                          placeholder="Type your message here..." 
+                          class="textarea textarea-bordered flex-grow resize-none h-20"
+                          required
+                          onkeydown="if(event.keyCode == 13 && !event.shiftKey) { event.preventDefault(); this.form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); }"></textarea>
+                <button type="submit" class="btn btn-primary h-20">
+                    <i class="fas fa-paper-plane text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="chat-indicator" class="htmx-indicator absolute -top-10 left-1/2 -translate-x-1/2 bg-base-100 px-4 py-2 rounded-full shadow-lg border border-primary">
+                <span class="loading loading-dots loading-md"></span> 
+                <span class="ml-2 text-sm">Ollama is thinking...</span>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Update model input when select changes
+    const modelSelect = document.getElementById('chat-model-select');
+    const modelInput = document.getElementById('form-model-input');
+    if (modelSelect) {
+        modelInput.value = modelSelect.value;
+        modelSelect.addEventListener('change', (e) => {
+            modelInput.value = e.target.value;
+        });
+    }
+
+    // Scroll chat to bottom on updates
+    const chatContainer = document.getElementById('chat-history-container');
+    const observer = new MutationObserver(() => {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+    observer.observe(chatContainer, { childList: true });
+</script>

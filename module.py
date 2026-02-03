@@ -1,0 +1,85 @@
+import threading
+import subprocess
+import requests
+import logging
+from django.shortcuts import render
+from django.urls import path
+from core.plugin_system import BaseModule
+
+logger = logging.getLogger(__name__)
+
+class Module(BaseModule):
+    @property
+    def module_id(self):
+        return "ollama"
+
+    @property
+    def module_name(self):
+        return "Ollama"
+
+    description = "Manage Ollama models and test them in a chat interface."
+    version = "1.0.0"
+
+    def get_context_data(self, request, tool):
+        context = {}
+        if tool.status == 'installed':
+            try:
+                response = requests.get("http://localhost:11434/api/tags", timeout=5)
+                if response.status_code == 200:
+                    context['models'] = response.json().get('models', [])
+                else:
+                    context['ollama_error'] = f"Ollama API returned status {response.status_code}"
+            except Exception as e:
+                context['ollama_error'] = f"Could not connect to Ollama: {str(e)}"
+        return context
+
+    def handle_hx_request(self, request, tool, target):
+        context = self.get_context_data(request, tool)
+        context['tool'] = tool
+        if target == 'models':
+            return render(request, 'core/partials/ollama_models.html', context)
+        elif target == 'chat':
+            return render(request, 'core/partials/ollama_chat.html', context)
+        return None
+
+    def install(self, request, tool):
+        if tool.status != 'not_installed':
+            return
+
+        tool.status = 'installing'
+        tool.save()
+
+        def run_install():
+            try:
+                tool.current_stage = "Downloading and running Ollama installation script..."
+                tool.save()
+                # Use -y or non-interactive if possible, but ollama install script is usually fine
+                process = subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True, capture_output=True, text=True)
+                if process.returncode != 0:
+                    raise Exception(process.stderr)
+                
+                tool.status = 'installed'
+                tool.current_stage = "Installation completed successfully"
+            except Exception as e:
+                tool.status = 'error'
+                tool.config_data['error_log'] = str(e)
+            tool.save()
+
+        threading.Thread(target=run_install).start()
+
+    def get_resource_tabs(self):
+        return [
+            {'id': 'models', 'label': 'Models', 'template': 'core/partials/ollama_models.html', 'hx_get': '/tool/ollama/?tab=models', 'hx_auto_refresh': 'every 30s'},
+            {'id': 'chat', 'label': 'Demo Chat', 'template': 'core/partials/ollama_chat.html', 'hx_get': '/tool/ollama/?tab=chat'},
+        ]
+
+    def get_urls(self):
+        from . import views
+        return [
+            path('ollama/model/pull/', views.pull_model, name='ollama_pull_model'),
+            path('ollama/model/delete/', views.delete_model, name='ollama_delete_model'),
+            path('ollama/chat/send/', views.chat_send, name='ollama_chat_send'),
+        ]
+
+    def get_icon_class(self):
+        return "simpleicons-ollama"

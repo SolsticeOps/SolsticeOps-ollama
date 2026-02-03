@@ -1,0 +1,19 @@
+{% for msg in history|slice:"-2:" %}
+<div class="chat chat-{{ msg.role|default:'user' }}">
+    <div class="chat-header opacity-50 text-xs mb-1">
+        {{ msg.role|title }}
+    </div>
+    <div class="chat-bubble {% if msg.role == 'assistant' %}chat-bubble-primary{% endif %} whitespace-pre-wrap">{{ msg.content }}</div>
+</div>
+{% endfor %}
+
+<div id="history-data-container" hx-swap-oob="true">
+    <script id="history-data" type="application/json">{{ history_json|safe }}</script>
+</div>
+
+<script hx-swap-oob="true">
+    (function() {
+        const historyData = JSON.parse(document.getElementById('history-data').textContent);
+        document.getElementById('history-input').value = JSON.stringify(historyData);
+    })();
+</script>
