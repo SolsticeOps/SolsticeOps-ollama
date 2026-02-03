@@ -63,22 +63,27 @@ def chat_send(request):
         message = request.POST.get('message')
         history = request.POST.get('history', '[]')
         
+        # Initialize default response context
+        try:
+            total_tokens = int(request.POST.get('total_tokens', 0))
+        except (ValueError, TypeError):
+            total_tokens = 0
+            
+        try:
+            history_list = json.loads(history)
+        except Exception:
+            history_list = []
+
         # LLM Parameters
         try:
             temperature = float(request.POST.get('temperature', 0.7))
             top_p = float(request.POST.get('top_p', 0.9))
             num_ctx = int(request.POST.get('num_ctx', 4096))
-            total_tokens = int(request.POST.get('total_tokens', 0))
             system_prompt = request.POST.get('system_prompt', '').strip()
             user_role = request.POST.get('user_role', 'user').strip()
             api_token = request.POST.get('api_token', '').strip()
         except (ValueError, TypeError) as e:
             return HttpResponse(f"Invalid parameter value: {str(e)}", status=400)
-        
-        try:
-            history_list = json.loads(history)
-        except Exception:
-            history_list = []
             
         if not model or not message:
             return HttpResponse(f"Model and message are required (Model: {model})", status=400)
@@ -142,7 +147,9 @@ def chat_send(request):
             
             return render(request, 'core/partials/ollama_chat_messages.html', {
                 'error': error_msg, 
-                'model': model
+                'model': model,
+                'history_json': json.dumps(history_list),
+                'total_tokens': total_tokens
             })
             
     return HttpResponse("Method not allowed", status=405)

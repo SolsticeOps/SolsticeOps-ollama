@@ -35,14 +35,19 @@
 
 <div id="history-data-container" hx-swap-oob="true">
     <script id="history-data" type="application/json">{{ history_json|safe }}</script>
+    <script>
+        (function() {
+            const historyElement = document.getElementById('history-data');
+            if (historyElement) {
+                const historyData = JSON.parse(historyElement.textContent);
+                const historyInput = document.getElementById('history-input');
+                const tokensInput = document.getElementById('total-tokens-input');
+
+                if (historyInput) historyInput.value = JSON.stringify(historyData);
+                if (tokensInput) tokensInput.value = "{{ total_tokens }}";
+            }
+        })();
+    </script>
 </div>
 
 <span id="total-tokens-display" hx-swap-oob="true" class="fw-bold text-primary">{{ total_tokens }}</span>
-
-<script hx-swap-oob="true">
-    (function() {
-        const historyData = JSON.parse(document.getElementById('history-data').textContent);
-        document.getElementById('history-input').value = JSON.stringify(historyData);
-        document.getElementById('total-tokens-input').value = "{{ total_tokens }}";
-    })();
-</script>
