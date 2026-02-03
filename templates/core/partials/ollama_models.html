@@ -1,7 +1,6 @@
 {% load core_tags %}
 <div class="card shadow-sm border-0" 
      id="ollama-models-container"
-     hx-ext="morph"
      hx-get="/tool/ollama/?tab=models" 
      hx-trigger="every 5s" 
      hx-select="#ollama-models-container" 
@@ -43,7 +42,7 @@
             <form action="{% url 'ollama_pull_model' %}" method="POST" class="row g-2">
                 {% csrf_token %}
                 <div class="col">
-                    <input type="text" name="model_name" id="ollama-pull-input" placeholder="e.g. llama3, mistral, codellama" class="form-control bg-transparent text-main border-secondary" required>
+                    <input type="text" name="model_name" id="ollama-pull-input" placeholder="e.g. llama3, mistral, codellama" class="form-control bg-transparent text-main border-secondary" required hx-preserve="true">
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
