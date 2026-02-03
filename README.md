@@ -1,14 +1,14 @@
 <div align="center">
     <picture>
         <source
-            srcset="https://github.com/SolsticeOps/SolsticeOps-core/docs/images/logo_dark.png"
+            srcset="https://raw.githubusercontent.com/SolsticeOps/SolsticeOps-core/refs/heads/main/docs/images/logo_dark.png"
             media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
         />
         <source
-            srcset="https://github.com/SolsticeOps/SolsticeOps-core/docs/images/logo_light.png"
+            srcset="https://raw.githubusercontent.com/SolsticeOps/SolsticeOps-core/refs/heads/main/docs/images/logo_light.png"
             media="(prefers-color-scheme: dark)"
         />
-        <img src="https://github.com/SolsticeOps/SolsticeOps-core/docs/images/logo_light.png" />
+        <img src="https://raw.githubusercontent.com/SolsticeOps/SolsticeOps-core/refs/heads/main/docs/images/logo_light.png" />
     </picture>
 </div>
 
