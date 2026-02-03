@@ -229,7 +229,17 @@
 
         function renderMarkdown(element) {
             if (typeof marked === 'undefined') return;
-            const rawContent = element.getAttribute('data-raw-content') || element.textContent;
+            let rawContent = element.getAttribute('data-raw-content') || element.textContent;
+            
+            // Try to unescape unicode characters if they look like \uXXXX
+            if (rawContent.includes('\\u')) {
+                try {
+                    rawContent = JSON.parse('"' + rawContent.replace(/"/g, '\\"') + '"');
+                } catch (e) {
+                    console.warn("Failed to unescape unicode:", e);
+                }
+            }
+
             if (!element.getAttribute('data-raw-content')) {
                 element.setAttribute('data-raw-content', rawContent);
             }
@@ -282,6 +292,14 @@
                 </div>
             `;
             container.insertAdjacentHTML('beforeend', userHtml);
+            
+            // Re-render markdown for the message we just added (in case it has markdown)
+            const lastMsg = container.lastElementChild.querySelector('.markdown-content');
+            if (lastMsg) {
+                renderMarkdown(lastMsg);
+                lastMsg.setAttribute('data-rendered', 'true');
+            }
+
             container.scrollTop = container.scrollHeight;
             
             setTimeout(() => { textarea.value = ''; }, 10);
@@ -438,6 +456,9 @@
     }
     .markdown-content p:last-child {
         margin-bottom: 0;
+    }
+    .markdown-content {
+        word-break: break-word;
     }
     .markdown-content ul, .markdown-content ol {
         padding-left: 1.5rem;
