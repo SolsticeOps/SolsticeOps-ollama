@@ -17,7 +17,7 @@
                     Service Inactive
                 </span>
                 {% endif %}
-                <button class="btn btn-sm btn-outline-secondary border-opacity-25" hx-get="/tool/ollama/?tab=models" hx-target="#tab-content">
+                <button class="btn btn-sm btn-outline-secondary border-opacity-25" hx-get="/tool/ollama/?tab=models" hx-target="#models">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
                 </button>
             </div>
@@ -31,12 +31,12 @@
         {% endif %}
 
         <!-- Pull Model Form -->
-        <div class="bg-dark bg-opacity-25 p-4 rounded-3 mb-4 border border-secondary border-opacity-10">
+        <div id="ollama-pull-model-form-container" hx-preserve class="bg-dark bg-opacity-25 p-4 rounded-3 mb-4 border border-secondary border-opacity-10">
             <h6 class="fw-bold mb-3 small text-uppercase text-muted letter-spacing-1">Pull New Model</h6>
             <form action="{% url 'ollama_pull_model' %}" method="POST" class="row g-2">
                 {% csrf_token %}
                 <div class="col">
-                    <input type="text" name="model_name" placeholder="e.g. llama3, mistral, codellama" class="form-control bg-dark text-light border-secondary" required>
+                    <input type="text" id="ollama-model-name-input" name="model_name" placeholder="e.g. llama3, mistral, codellama" class="form-control bg-dark text-light border-secondary" required>
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
