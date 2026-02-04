@@ -129,7 +129,16 @@ def chat_send(request):
                       f'<div class="flex-grow-1">' \
                       f'<div class="fw-bold small mb-1">Ollama <span class="text-muted fw-normal">({model})</span></div>' \
                       f'<div class="p-3 rounded-3 border border-secondary border-opacity-25 text-main small shadow-sm markdown-content" ' \
-                      f'style="max-width: 85%; background-color: var(--card-bg);" id="streaming-text-target"></div>' \
+                      f'style="max-width: 85%; background-color: var(--card-bg);" id="streaming-text-target">' \
+                      f'<div id="streaming-loader" class="py-1 d-flex gap-1">' \
+                      f'<span class="spinner-grow spinner-grow-sm text-primary" role="status" style="width: 8px; height: 8px;"></span>' \
+                      f'<span class="spinner-grow spinner-grow-sm text-primary" role="status" style="width: 8px; height: 8px; animation-delay: 0.2s"></span>' \
+                      f'<span class="spinner-grow spinner-grow-sm text-primary" role="status" style="width: 8px; height: 8px; animation-delay: 0.4s"></span>' \
+                      f'</div>' \
+                      f'</div>' \
+                      f'<div class="mt-1 ms-1" id="streaming-tokens-target" style="display:none; font-size: 10px; color: var(--muted);">' \
+                      f'<i class="bi bi-lightning-charge-fill me-1"></i><span class="token-count">0</span> tokens' \
+                      f'</div>' \
                       f'</div></div>'
 
                 for chunk in stream:
@@ -141,13 +150,17 @@ def chat_send(request):
                         completion_tokens = chunk.get('eval_count', 0)
                         message_tokens = prompt_tokens + completion_tokens
 
-                    # Use ensure_ascii=False to keep Cyrillic characters
-                    safe_content = json.dumps(content, ensure_ascii=False)
-                    # Use a script to append content to the target div and trigger scrolling
-                    yield f'<script>' \
-                          f'document.getElementById("streaming-text-target").textContent += {safe_content};' \
-                          f'document.getElementById("chat-history-container").scrollTop = document.getElementById("chat-history-container").scrollHeight;' \
-                          f'</script>'
+                    if content:
+                        # Use ensure_ascii=False to keep Cyrillic characters
+                        safe_content = json.dumps(content, ensure_ascii=False)
+                        # Use a script to append content to the target div and trigger scrolling
+                        yield f'<script>' \
+                              f'var target = document.getElementById("streaming-text-target");' \
+                              f'var loader = document.getElementById("streaming-loader");' \
+                              f'if(loader) loader.remove();' \
+                              f'target.textContent += {safe_content};' \
+                              f'document.getElementById("chat-history-container").scrollTop = document.getElementById("chat-history-container").scrollHeight;' \
+                              f'</script>'
                 
                 # Finalize the message: render markdown, update history, tokens, etc.
                 history_list.append({
@@ -168,8 +181,16 @@ def chat_send(request):
                 yield f'<script>' \
                       f'var container = document.getElementById("streaming-response-container");' \
                       f'var target = document.getElementById("streaming-text-target");' \
+                      f'var tokensTarget = document.getElementById("streaming-tokens-target");' \
+                      f'var loader = document.getElementById("streaming-loader");' \
+                      f'if(loader) loader.remove();' \
                       f'target.setAttribute("data-raw-content", {safe_full_content});' \
                       f'target.removeAttribute("id");' \
+                      f'if(tokensTarget) {{' \
+                      f'  tokensTarget.querySelector(".token-count").innerText = "{message_tokens}";' \
+                      f'  tokensTarget.style.display = "block";' \
+                      f'  tokensTarget.removeAttribute("id");' \
+                      f'}}' \
                       f'container.removeAttribute("id");' \
                       f'if(window.renderMarkdown) window.renderMarkdown(target);' \
                       f'target.setAttribute("data-rendered", "true");' \
