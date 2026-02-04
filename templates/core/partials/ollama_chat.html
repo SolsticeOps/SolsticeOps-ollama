@@ -178,42 +178,6 @@
     </div>
 </div>
 
-    <!-- Request Preview Modal -->
-    <div class="modal fade" id="requestPreviewModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content border-secondary">
-                <div class="modal-header border-bottom border-secondary border-opacity-10">
-                    <h5 class="modal-title fw-bold">Request Preview</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-0">
-                    <ul class="nav nav-tabs px-3 pt-2 bg-light bg-opacity-10" role="tablist">
-                        <li class="nav-item"><button class="nav-link active py-2 small" data-bs-toggle="tab" data-bs-target="#preview-curl">cURL</button></li>
-                        <li class="nav-item"><button class="nav-link py-2 small" data-bs-toggle="tab" data-bs-target="#preview-python">Python</button></li>
-                        <li class="nav-item"><button class="nav-link py-2 small" data-bs-toggle="tab" data-bs-target="#preview-nodejs">Node.js</button></li>
-                    </ul>
-                    <div class="tab-content p-3 bg-dark">
-                        <div class="tab-pane fade show active" id="preview-curl">
-                            <pre class="rounded small mb-0 overflow-x-auto" style="background: transparent; border: none;"><code id="code-curl" class="language-bash d-block p-3"></code></pre>
-                        </div>
-                        <div class="tab-pane fade" id="preview-python">
-                            <pre class="rounded small mb-0 overflow-x-auto" style="background: transparent; border: none;"><code id="code-python" class="language-python d-block p-3"></code></pre>
-                        </div>
-                        <div class="tab-pane fade" id="preview-nodejs">
-                            <pre class="rounded small mb-0 overflow-x-auto" style="background: transparent; border: none;"><code id="code-nodejs" class="language-javascript d-block p-3"></code></pre>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer border-top border-secondary border-opacity-10">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copySnippet()">
-                        <i class="bi bi-clipboard me-1"></i> Copy to Clipboard
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
 <script>
     (function() {
         // Use a unique namespace to avoid redeclaration issues in HTMX
@@ -394,20 +358,8 @@
                 hljs.highlightElement(block);
             });
 
-            var modal = new bootstrap.Modal(document.getElementById('requestPreviewModal'));
+            var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('requestPreviewModal'));
             modal.show();
-        };
-
-        window.copySnippet = function() {
-            var activeTab = document.querySelector('#requestPreviewModal .tab-pane.active code');
-            if (activeTab) {
-                navigator.clipboard.writeText(activeTab.textContent).then(() => {
-                    var btn = document.querySelector('#requestPreviewModal .modal-footer button');
-                    var originalText = btn.innerHTML;
-                    btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-                    setTimeout(() => { btn.innerHTML = originalText; }, 2000);
-                });
-            }
         };
 
         // Scroll chat to bottom on updates (HTMX)

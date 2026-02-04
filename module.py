@@ -114,6 +114,9 @@ class Module(BaseModule):
     def get_icon_class(self):
         return "simpleicons-ollama"
 
+    def get_extra_content_template_name(self):
+        return "core/modules/ollama_scripts.html"
+
     def get_custom_icon_svg(self):
         import os
         
