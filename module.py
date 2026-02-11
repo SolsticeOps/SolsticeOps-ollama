@@ -84,8 +84,7 @@ class Module(BaseModule):
             try:
                 tool.current_stage = "Downloading and running Ollama installation script..."
                 tool.save()
-                # The ollama script might use sudo internally, but we can try running it with our utility
-                # if we pipe it to sh. 
+                # Run the official installation script. Assumes running as root.
                 run_sudo_command("curl -fsSL https://ollama.com/install.sh | sh", shell=True, capture_output=False, timeout=600)
                 
                 tool.status = 'installed'
