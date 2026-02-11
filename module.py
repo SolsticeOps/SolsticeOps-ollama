@@ -5,6 +5,7 @@ import logging
 from django.shortcuts import render
 from django.urls import path
 from core.plugin_system import BaseModule
+from core.utils import run_sudo_command
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +37,8 @@ class Module(BaseModule):
         
         # Check service status
         try:
-            status_process = subprocess.run(["systemctl", "is-active", "ollama"], capture_output=True, text=True)
-            context['service_active'] = (status_process.stdout.strip() == "active")
+            status_process = run_sudo_command(["systemctl", "is-active", "ollama"])
+            context['service_active'] = (status_process.decode().strip() == "active")
             
             # If service is active but tool status is not 'installed', we might want to sync it
             if context['service_active'] and tool.status == 'not_installed':
@@ -83,10 +84,9 @@ class Module(BaseModule):
             try:
                 tool.current_stage = "Downloading and running Ollama installation script..."
                 tool.save()
-                # Use -y or non-interactive if possible, but ollama install script is usually fine
-                process = subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True, capture_output=True, text=True)
-                if process.returncode != 0:
-                    raise Exception(process.stderr)
+                # The ollama script might use sudo internally, but we can try running it with our utility
+                # if we pipe it to sh. 
+                run_sudo_command("curl -fsSL https://ollama.com/install.sh | sh", shell=True, capture_output=False)
                 
                 tool.status = 'installed'
                 tool.current_stage = "Installation completed successfully"
