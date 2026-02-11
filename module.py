@@ -86,7 +86,7 @@ class Module(BaseModule):
                 tool.save()
                 # The ollama script might use sudo internally, but we can try running it with our utility
                 # if we pipe it to sh. 
-                run_sudo_command("curl -fsSL https://ollama.com/install.sh | sh", shell=True, capture_output=False)
+                run_sudo_command("curl -fsSL https://ollama.com/install.sh | sh", shell=True, capture_output=False, timeout=600)
                 
                 tool.status = 'installed'
                 tool.current_stage = "Installation completed successfully"
