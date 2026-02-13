@@ -33,10 +33,15 @@ class Module(BaseModule):
 
     def get_service_status(self, tool):
         try:
-            status_process = run_command(["systemctl", "is-active", "ollama"])
-            return 'running' if status_process.decode().strip() == "active" else 'stopped'
-        except Exception:
+            status_process = run_command(["systemctl", "is-active", "ollama"], log_errors=False)
+            status = status_process.decode().strip()
+            if status == "active":
+                return 'running'
+            elif status in ["inactive", "failed", "deactivating"]:
+                return 'stopped'
             return 'error'
+        except Exception:
+            return 'stopped'
 
     def service_start(self, tool):
         run_command(["systemctl", "start", "ollama"])
