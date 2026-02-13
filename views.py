@@ -15,31 +15,45 @@ def pull_model(request):
             tool = get_object_or_404(Tool, name='ollama')
             
             def run_pull():
+                # Use a separate database connection for the background thread to avoid locking issues
+                from django import db
+                db.connections.close_all()
+                
                 try:
                     client = ollama.Client(host='http://localhost:11434')
                     # Initialize progress
-                    tool.config_data['pulling_model'] = model_name
-                    tool.config_data['pull_progress'] = 0
-                    tool.save()
+                    # Refresh tool object from DB
+                    from core.models import Tool
+                    tool_refresh = Tool.objects.get(pk=tool.pk)
+                    tool_refresh.config_data['pulling_model'] = model_name
+                    tool_refresh.config_data['pull_progress'] = 0
+                    tool_refresh.save()
                     
                     for part in client.pull(model_name, stream=True):
                         if 'completed' in part and 'total' in part:
                             progress = int((part['completed'] / part['total']) * 100)
-                            tool.config_data['pull_progress'] = progress
-                            tool.save()
+                            tool_refresh = Tool.objects.get(pk=tool.pk)
+                            tool_refresh.config_data['pull_progress'] = progress
+                            tool_refresh.save()
                         elif 'status' in part:
-                            tool.config_data['pull_status'] = part['status']
-                            tool.save()
+                            tool_refresh = Tool.objects.get(pk=tool.pk)
+                            tool_refresh.config_data['pull_status'] = part['status']
+                            tool_refresh.save()
                             
                     # Cleanup after success
-                    tool.config_data.pop('pulling_model', None)
-                    tool.config_data.pop('pull_progress', None)
-                    tool.config_data.pop('pull_status', None)
-                    tool.save()
+                    tool_refresh = Tool.objects.get(pk=tool.pk)
+                    tool_refresh.config_data.pop('pulling_model', None)
+                    tool_refresh.config_data.pop('pull_progress', None)
+                    tool_refresh.config_data.pop('pull_status', None)
+                    tool_refresh.save()
                 except Exception as e:
-                    tool.config_data['pull_error'] = str(e)
-                    tool.config_data.pop('pulling_model', None)
-                    tool.save()
+                    try:
+                        tool_refresh = Tool.objects.get(pk=tool.pk)
+                        tool_refresh.config_data['pull_error'] = str(e)
+                        tool_refresh.config_data.pop('pulling_model', None)
+                        tool_refresh.save()
+                    except:
+                        pass
 
             threading.Thread(target=run_pull).start()
             
