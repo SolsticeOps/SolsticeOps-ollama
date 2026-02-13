@@ -31,6 +31,22 @@ class Module(BaseModule):
             pass
         return None
 
+    def get_service_status(self, tool):
+        try:
+            status_process = run_command(["systemctl", "is-active", "ollama"])
+            return 'running' if status_process.decode().strip() == "active" else 'stopped'
+        except Exception:
+            return 'error'
+
+    def service_start(self, tool):
+        run_command(["systemctl", "start", "ollama"])
+
+    def service_stop(self, tool):
+        run_command(["systemctl", "stop", "ollama"])
+
+    def service_restart(self, tool):
+        run_command(["systemctl", "restart", "ollama"])
+
     def get_context_data(self, request, tool):
         context = {}
         context['config_data'] = tool.config_data
