@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from core.models import Tool
 from unittest.mock import patch, MagicMock
+import json
 
 User = get_user_model()
 
@@ -228,3 +229,128 @@ class OllamaModuleTest(TestCase):
         module = plugin_registry.get_module("ollama")
         status = module.get_service_status(self.tool)
         self.assertEqual(status, "running")
+        
+        mock_run.return_value = b"inactive"
+        self.assertEqual(module.get_service_status(self.tool), "stopped")
+        
+        mock_run.return_value = b"unknown"
+        self.assertEqual(module.get_service_status(self.tool), "error")
+
+    @patch('modules.ollama.module.run_command')
+    @patch('modules.ollama.module.threading.Thread')
+    def test_ollama_install_process(self, mock_thread, mock_run):
+        from modules.ollama.module import Module
+        module = Module()
+        self.tool.status = 'not_installed'
+        self.tool.save()
+        
+        module.install(None, self.tool)
+        target_func = mock_thread.call_args[1]['target']
+        target_func()
+        
+        self.tool.refresh_from_db()
+        self.assertEqual(self.tool.status, 'installed')
+        
+        # Test failure
+        mock_run.side_effect = Exception("install error")
+        target_func()
+        self.tool.refresh_from_db()
+        self.assertEqual(self.tool.status, 'error')
+
+    def test_ollama_custom_icon(self):
+        from modules.ollama.module import Module
+        module = Module()
+        # Test with existing file
+        with patch('os.path.exists', return_value=True):
+            with patch('builtins.open', MagicMock(return_value=MagicMock(__enter__=lambda x: MagicMock(read=lambda: "<svg></svg>")))):
+                self.assertEqual(module.get_custom_icon_svg(), "<svg></svg>")
+        
+        # Test with missing file
+        with patch('os.path.exists', return_value=False):
+            self.assertIsNone(module.get_custom_icon_svg())
+
+    @patch('ollama.Client')
+    def test_chat_send_full_params(self, mock_ollama):
+        mock_client = MagicMock()
+        mock_client.chat.return_value = [{'message': {'content': 'OK'}, 'done': True, 'prompt_eval_count': 10, 'eval_count': 20}]
+        mock_ollama.return_value = mock_client
+        
+        url = '/ollama/chat/send/'
+        response = self.client.post(url, {
+            'model': 'llama3',
+            'message': 'Hi',
+            'history': '[]',
+            'system_prompt': 'Be helpful',
+            'temperature': '0.5',
+            'top_p': '0.8',
+            'num_ctx': '2048',
+            'user_role': 'user',
+            'total_tokens': '100'
+        })
+        self.assertEqual(response.status_code, 200)
+        content = b"".join(response.streaming_content).decode()
+        self.assertIn("OK", content)
+        self.assertIn('30', content) # message_tokens (10+20)
+        self.assertIn('130', content) # new_total_tokens (100+30)
+        
+        # Verify client call
+        args, kwargs = mock_client.chat.call_args
+        self.assertEqual(kwargs['options']['temperature'], 0.5)
+        self.assertEqual(kwargs['options']['top_p'], 0.8)
+        self.assertTrue(any(m['role'] == 'system' for m in kwargs['messages']))
+
+    @patch('ollama.Client')
+    def test_chat_send_unauthorized(self, mock_ollama):
+        mock_client = MagicMock()
+        mock_client.chat.side_effect = Exception("401 Unauthorized access")
+        mock_ollama.return_value = mock_client
+        
+        url = '/ollama/chat/send/'
+        response = self.client.post(url, {
+            'model': 'llama3',
+            'message': 'Hi',
+            'history': '[]',
+            'api_token': 'test-token'
+        })
+        self.assertEqual(response.status_code, 200)
+        content = b"".join(response.streaming_content).decode()
+        self.assertIn("Ollama is unauthorized", content)
+
+    def test_chat_send_invalid_method(self):
+        url = '/ollama/chat/send/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 405)
+
+    @patch('ollama.Client')
+    def test_chat_send_with_history(self, mock_ollama):
+        mock_client = MagicMock()
+        mock_client.chat.return_value = [{'message': {'content': 'Response'}, 'done': True}]
+        mock_ollama.return_value = mock_client
+        
+        url = '/ollama/chat/send/'
+        history = json.dumps([{'role': 'user', 'content': 'First'}])
+        response = self.client.post(url, {
+            'model': 'llama3',
+            'message': 'Second',
+            'history': history
+        })
+        self.assertEqual(response.status_code, 200)
+        content = b"".join(response.streaming_content).decode()
+        self.assertIn("Response", content)
+        
+        # Verify messages sent to API
+        args, kwargs = mock_client.chat.call_args
+        messages = kwargs['messages']
+        self.assertEqual(len(messages), 2)
+        self.assertEqual(messages[0]['content'], 'First')
+        self.assertEqual(messages[1]['content'], 'Second')
+
+    @patch('ollama.Client')
+    def test_chat_send_json_error(self, mock_ollama):
+        url = '/ollama/chat/send/'
+        response = self.client.post(url, {
+            'model': 'llama3',
+            'message': 'Hi',
+            'history': 'invalid-json'
+        })
+        self.assertEqual(response.status_code, 200) # It falls back to empty history
