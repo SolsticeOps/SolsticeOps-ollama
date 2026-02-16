@@ -2,6 +2,7 @@ import threading
 import subprocess
 import requests
 import logging
+import os
 from django.shortcuts import render
 from django.urls import path
 from core.plugin_system import BaseModule
@@ -19,7 +20,13 @@ class Module(BaseModule):
         return "Ollama"
 
     description = "Manage Ollama models and test them in a chat interface."
-    version = "1.0.0"
+    
+    @property
+    def version(self):
+        try:
+            return subprocess.check_output(['git', '-C', os.path.dirname(__file__), 'describe', '--tags', '--abbrev=0']).decode().strip()
+        except:
+            return "1.0.0"
 
     def get_service_version(self):
         try:
