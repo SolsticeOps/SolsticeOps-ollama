@@ -1,13 +1,5 @@
 {% load core_tags %}
-<div class="card shadow-sm border-0" 
-     id="ollama-models-container"
-     hx-ext="morph"
-     hx-get="/tool/ollama/?tab=models" 
-     hx-trigger="every 5s [document.getElementById('ollama-pull-input') && document.getElementById('ollama-pull-input').value === '' && document.activeElement.id !== 'ollama-pull-input']" 
-     hx-include="#ollama-models-container input[name='search'], #ollama-models-container select[name='per_page']"
-     hx-select="#ollama-models-container" 
-     hx-target="#ollama-models-container" 
-     hx-swap="morph">
+<div id="ollama-models-container">
     <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h5 class="fw-bold mb-0">
@@ -27,7 +19,7 @@
                 {% endif %}
                 <button class="btn btn-sm btn-outline-secondary border-opacity-25" 
                         hx-get="/tool/ollama/?tab=models" 
-                        hx-target="#ollama-models-container" 
+                        hx-target="#models" 
                         hx-select="#ollama-models-container" 
                         hx-swap="morph">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
@@ -64,23 +56,23 @@
         {% endif %}
 
         <!-- Search and Filter -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-end align-items-center mb-3">
             <form hx-get="/tool/ollama/?tab=models"
-                  hx-target="#ollama-models-container"
+                  hx-target="#models"
                   hx-select="#ollama-models-container"
                   hx-swap="morph"
                   hx-indicator="#ollama-search-indicator"
-                  class="input-group input-group-sm w-auto" style="min-width: 300px;">
-                <span class="input-group-text bg-transparent border-secondary border-opacity-25 text-muted">
-                    <i class="bi bi-search" id="ollama-search-icon"></i>
-                    <div class="spinner-border spinner-border-sm htmx-indicator" id="ollama-search-indicator" role="status" style="width: 12px; height: 12px;"></div>
-                </span>
+                  class="input-group input-group-sm w-auto">
                 <input type="text" 
                        name="search" 
                        class="form-control border-secondary border-opacity-25 bg-transparent" 
                        placeholder="Search models..." 
-                       value="{{ search_query }}">
-                <button type="submit" class="btn btn-outline-secondary border-secondary border-opacity-25">Search</button>
+                       value="{{ search_query }}"
+                       style="width: 250px;">
+                <button type="submit" class="btn btn-outline-secondary border-secondary border-opacity-25 d-flex align-items-center">
+                    <i class="bi bi-search" id="ollama-search-icon"></i>
+                    <div class="spinner-border spinner-border-sm ms-2 d-none htmx-indicator-custom" id="ollama-search-indicator" role="status" style="width: 12px; height: 12px;"></div>
+                </button>
             </form>
         </div>
 
@@ -218,6 +210,14 @@
             </table>
         </div>
 
-        {% include 'core/partials/pagination.html' with pagination=pagination base_url="/tool/ollama/?tab=models" target="#ollama-models-container" show_per_page_select=True include_selector="#ollama-models-container input[name='search']" %}
+        {% include 'core/partials/pagination.html' with pagination=pagination base_url="/tool/ollama/?tab=models" target="#models" show_per_page_select=True include_selector="#models input[name='search']" %}
     </div>
 </div>
+<style>
+    .htmx-indicator-custom {
+        display: none;
+    }
+    .htmx-request .htmx-indicator-custom {
+        display: inline-block;
+    }
+</style>

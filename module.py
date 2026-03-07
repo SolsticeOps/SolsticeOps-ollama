@@ -237,7 +237,13 @@ class Module(BaseModule):
 
     def get_resource_tabs(self):
         return [
-            {'id': 'models', 'label': 'Models', 'template': 'core/partials/ollama_models.html', 'hx_get': '/tool/ollama/?tab=models'},
+            {
+                'id': 'models', 
+                'label': 'Models', 
+                'template': 'core/partials/ollama_models.html', 
+                'hx_get': '/tool/ollama/?tab=models', 
+                'hx_auto_refresh': 'every 5s [document.getElementById(\'ollama-pull-input\') && document.getElementById(\'ollama-pull-input\').value === \'\' && document.activeElement.tagName !== \'INPUT\' && document.activeElement.tagName !== \'SELECT\' && document.activeElement.tagName !== \'TEXTAREA\']'
+            },
             {'id': 'chat', 'label': 'Demo Chat', 'template': 'core/partials/ollama_chat.html', 'hx_get': '/tool/ollama/?tab=chat'},
         ]
 
