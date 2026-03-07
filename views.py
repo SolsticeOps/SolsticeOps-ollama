@@ -30,24 +30,35 @@ def pull_model(request):
                     tool_refresh.save()
                     
                     for part in client.pull(model_name, stream=True):
+                        # Get a fresh tool object to ensure we don't overwrite other changes
+                        from core.models import Tool
+                        tool_refresh = Tool.objects.get(pk=tool.pk)
+                        
                         if 'completed' in part and 'total' in part:
                             progress = int((part['completed'] / part['total']) * 100)
-                            tool_refresh = Tool.objects.get(pk=tool.pk)
                             tool_refresh.config_data['pull_progress'] = progress
+                            tool_refresh.config_data['pulling_model'] = model_name
                             tool_refresh.save()
                         elif 'status' in part:
-                            tool_refresh = Tool.objects.get(pk=tool.pk)
+                            # If status is 'success', we can finish early
+                            if part.get('status') == 'success':
+                                break
                             tool_refresh.config_data['pull_status'] = part['status']
+                            tool_refresh.config_data['pulling_model'] = model_name
                             tool_refresh.save()
                             
-                    # Cleanup after success
+                    # Final cleanup after success
+                    # Wait a tiny bit to ensure the last save from loop is finished
+                    time.sleep(0.5)
                     tool_refresh = Tool.objects.get(pk=tool.pk)
                     tool_refresh.config_data.pop('pulling_model', None)
                     tool_refresh.config_data.pop('pull_progress', None)
                     tool_refresh.config_data.pop('pull_status', None)
+                    tool_refresh.config_data.pop('pull_error', None) # Also clear old errors
                     tool_refresh.save()
                 except Exception as e:
                     try:
+                        from core.models import Tool
                         tool_refresh = Tool.objects.get(pk=tool.pk)
                         tool_refresh.config_data['pull_error'] = str(e)
                         tool_refresh.config_data.pop('pulling_model', None)
@@ -78,6 +89,30 @@ def chat_send(request):
         message = request.POST.get('message')
         history = request.POST.get('history', '[]')
         
+        # Handle file upload
+        images = []
+        attachment_file = request.FILES.get('attachment')
+        if attachment_file:
+            import base64
+            # Check if it's an image
+            if attachment_file.content_type.startswith('image/'):
+                try:
+                    image_data = attachment_file.read()
+                    image_base64 = base64.b64encode(image_data).decode('utf-8')
+                    images.append(image_base64)
+                except Exception as e:
+                    logger.error(f"Failed to process image attachment: {e}")
+            elif attachment_file.content_type.startswith('text/') or attachment_file.name.endswith(('.py', '.js', '.json', '.md', '.txt', '.sh', '.yaml', '.yml')):
+                try:
+                    file_content = attachment_file.read().decode('utf-8')
+                    # Prepend file content to message for context
+                    message = f"File: {attachment_file.name}\n---\n{file_content}\n---\n\n{message}"
+                except Exception as e:
+                    logger.error(f"Failed to process text attachment: {e}")
+            else:
+                # For other types, we just add the name for now as Ollama doesn't support direct video/audio yet
+                message = f"(Attached file: {attachment_file.name})\n\n{message}"
+
         try:
             total_tokens = int(request.POST.get('total_tokens', 0))
         except (ValueError, TypeError):
@@ -95,20 +130,43 @@ def chat_send(request):
             system_prompt = request.POST.get('system_prompt', '').strip()
             user_role = request.POST.get('user_role', 'user').strip()
             api_token = request.POST.get('api_token', '').strip()
+            thinking_enabled = request.POST.get('thinking', 'false') == 'true'
         except (ValueError, TypeError) as e:
             return HttpResponse(f"Invalid parameter value: {str(e)}", status=400)
             
         if not model or not message:
             return HttpResponse(f"Model and message are required", status=400)
             
-        history_list.append({"role": user_role, "content": message})
+        # Handle thinking instructions
+        thinking_instruction = "Always reason step by step inside `<thought></thought>` tags before providing your final answer."
+        if thinking_enabled:
+            if system_prompt:
+                system_prompt += f"\n{thinking_instruction}"
+            else:
+                system_prompt = thinking_instruction
+        else:
+            # Try to suppress thinking if disabled
+            suppress_instruction = "Do not use <thought> tags or reasoning process. Answer directly."
+            if system_prompt:
+                system_prompt += f"\n{suppress_instruction}"
+            else:
+                system_prompt = suppress_instruction
+            
+        user_message = {"role": user_role, "content": message}
+        if images:
+            user_message["images"] = images
+            
+        history_list.append(user_message)
         
         api_messages = []
         if system_prompt:
             api_messages.append({"role": "system", "content": system_prompt})
         
         for m in history_list:
-            api_messages.append({"role": m["role"], "content": m["content"]})
+            msg = {"role": m["role"], "content": m["content"]}
+            if "images" in m:
+                msg["images"] = m["images"]
+            api_messages.append(msg)
         
         def stream_generator():
             try:
@@ -132,6 +190,7 @@ def chat_send(request):
                 
                 full_content = ""
                 message_tokens = 0
+                is_thinking = False
                 
                 # Initial placeholder for the assistant message
                 yield f'<div class="d-flex mb-4 animate-fade-in" id="streaming-response-container">' \
@@ -155,26 +214,63 @@ def chat_send(request):
                       f'</div>' \
                       f'</div></div>'
 
-                for chunk in stream:
-                    content = chunk.get('message', {}).get('content', '')
-                    full_content += content
-                    
-                    if chunk.get('done'):
-                        prompt_tokens = chunk.get('prompt_eval_count', 0)
-                        completion_tokens = chunk.get('eval_count', 0)
-                        message_tokens = prompt_tokens + completion_tokens
+                try:
+                    for chunk in stream:
+                        # Handle thinking/reasoning content if present
+                        reasoning = chunk.get('message', {}).get('reasoning_content', '')
+                        # Also check for standard content that might contain reasoning tags if the model doesn't use reasoning_content
+                        content = chunk.get('message', {}).get('content', '')
+                        
+                        if reasoning:
+                            if not is_thinking:
+                                is_thinking = True
+                                full_content += "<thought>\n"
+                                yield f'<script>document.getElementById("streaming-text-target").textContent += "<thought>\\n";</script>'
+                            full_content += reasoning
+                            safe_reasoning = json.dumps(reasoning, ensure_ascii=False)
+                            yield f'<script>' \
+                                  f'var target = document.getElementById("streaming-text-target");' \
+                                  f'var loader = document.getElementById("streaming-loader");' \
+                                  f'if(loader) loader.remove();' \
+                                  f'target.textContent += {safe_reasoning};' \
+                                  f'document.getElementById("chat-history-container").scrollTop = document.getElementById("chat-history-container").scrollHeight;' \
+                                  f'</script>'
+                        
+                        if content:
+                            if is_thinking:
+                                is_thinking = False
+                                full_content += "\n</thought>\n\n"
+                                yield f'<script>document.getElementById("streaming-text-target").textContent += "\\n</thought>\\n\\n";</script>'
+                            
+                            # Detect if content starts with <thought> but isn't using reasoning_content field
+                            if not is_thinking and "<thought>" in content and "</thought>" not in content:
+                                is_thinking = True
+                            
+                            full_content += content
+                            safe_content = json.dumps(content, ensure_ascii=False)
+                            yield f'<script>' \
+                                  f'var target = document.getElementById("streaming-text-target");' \
+                                  f'var loader = document.getElementById("streaming-loader");' \
+                                  f'if(loader) loader.remove();' \
+                                  f'target.textContent += {safe_content};' \
+                                  f'document.getElementById("chat-history-container").scrollTop = document.getElementById("chat-history-container").scrollHeight;' \
+                                  f'</script>'
+                            
+                            if is_thinking and "</thought>" in content:
+                                is_thinking = False
+                        
+                        if chunk.get('done'):
+                            prompt_tokens = chunk.get('prompt_eval_count', 0)
+                            completion_tokens = chunk.get('eval_count', 0)
+                            message_tokens = prompt_tokens + completion_tokens
+                except (GeneratorExit, ConnectionResetError):
+                    # Handle client disconnect gracefully
+                    return
 
-                    if content:
-                        # Use ensure_ascii=False to keep Cyrillic characters
-                        safe_content = json.dumps(content, ensure_ascii=False)
-                        # Use a script to append content to the target div and trigger scrolling
-                        yield f'<script>' \
-                              f'var target = document.getElementById("streaming-text-target");' \
-                              f'var loader = document.getElementById("streaming-loader");' \
-                              f'if(loader) loader.remove();' \
-                              f'target.textContent += {safe_content};' \
-                              f'document.getElementById("chat-history-container").scrollTop = document.getElementById("chat-history-container").scrollHeight;' \
-                              f'</script>'
+                # Close thinking tag if it was left open
+                if is_thinking:
+                    full_content += "\n</thought>"
+                    yield f'<script>document.getElementById("streaming-text-target").textContent += "\\n</thought>";</script>'
                 
                 # Finalize the message: render markdown, update history, tokens, etc.
                 history_list.append({

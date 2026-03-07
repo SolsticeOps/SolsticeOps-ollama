@@ -26,7 +26,7 @@ class Module(BaseModule):
         try:
             return subprocess.check_output(['git', '-C', os.path.dirname(__file__), 'describe', '--tags', '--abbrev=0']).decode().strip()
         except:
-            return "1.0.0"
+            return "1.1.0"
 
     def get_service_version(self):
         try:
@@ -59,6 +59,28 @@ class Module(BaseModule):
     def service_restart(self, tool):
         run_command(["systemctl", "restart", "ollama"])
 
+    def update(self, request, tool):
+        if tool.status != 'installed':
+            return
+
+        tool.status = 'installing'
+        tool.current_stage = "Updating Ollama..."
+        tool.save()
+
+        def run_update():
+            try:
+                # Run the official installation script again to update
+                run_command("curl -fsSL https://ollama.com/install.sh | sh", shell=True, capture_output=False, timeout=600)
+                
+                tool.status = 'installed'
+                tool.current_stage = "Update completed successfully"
+            except Exception as e:
+                tool.status = 'error'
+                tool.config_data['error_log'] = str(e)
+            tool.save()
+
+        threading.Thread(target=run_update).start()
+
     def get_context_data(self, request, tool):
         context = {}
         context['config_data'] = tool.config_data
@@ -83,11 +105,84 @@ class Module(BaseModule):
                 
                 # Handle both dict and object responses
                 if hasattr(models_response, 'models'):
-                    context['models'] = models_response.models
+                    models = models_response.models
                 elif isinstance(models_response, dict):
-                    context['models'] = models_response.get('models', [])
+                    models = models_response.get('models', [])
                 else:
-                    context['models'] = []
+                    models = []
+
+                # Fetch and enrich model capabilities
+                enriched_models = []
+                capabilities_cache = tool.config_data.get('capabilities_cache', {})
+                cache_updated = False
+
+                import time
+                import re
+
+                # Auto-cleanup stale pull progress if model is already in list or progress is 100%
+                pulling_model = tool.config_data.get('pulling_model')
+                if pulling_model:
+                    is_pulled = any((m.model if hasattr(m, 'model') else m.get('model')) == pulling_model for m in models)
+                    if is_pulled or tool.config_data.get('pull_progress') == 100:
+                        tool.config_data.pop('pulling_model', None)
+                        tool.config_data.pop('pull_progress', None)
+                        tool.config_data.pop('pull_status', None)
+                        tool.save()
+
+                for model in models:
+                    # Get the base model name (e.g., 'llama3.1:latest' -> 'llama3.1')
+                    model_full_name = model.model if hasattr(model, 'model') else model.get('model', '')
+                    model_base_name = model_full_name.split(':')[0] if ':' in model_full_name else model_full_name
+                    
+                    # Check cache (valid for 24 hours)
+                    cache_entry = capabilities_cache.get(model_base_name)
+                    current_time = time.time()
+                    
+                    if not cache_entry or (current_time - cache_entry.get('timestamp', 0) > 86400):
+                        # Fetch from Ollama library
+                        try:
+                            response = requests.get(f"https://ollama.com/library/{model_base_name}", timeout=5)
+                            if response.status_code == 200:
+                                html = response.text
+                                caps = {
+                                    'tools': 'tools' in html.lower(),
+                                    'thinking': 'thinking' in html.lower(),
+                                    'vision': 'vision' in html.lower(),
+                                    'embedding': 'embedding' in html.lower(),
+                                    'timestamp': current_time
+                                }
+                                capabilities_cache[model_base_name] = caps
+                                cache_updated = True
+                            else:
+                                caps = cache_entry or {'tools': False, 'thinking': False, 'vision': False, 'embedding': False}
+                        except Exception:
+                            caps = cache_entry or {'tools': False, 'thinking': False, 'vision': False, 'embedding': False}
+                    else:
+                        caps = cache_entry
+
+                    # Create a dictionary representation of the model to avoid Pydantic/object immutability issues
+                    if hasattr(model, 'model_dump'): # Pydantic v2
+                        model_dict = model.model_dump()
+                    elif hasattr(model, 'dict'): # Pydantic v1
+                        model_dict = model.dict()
+                    elif hasattr(model, '__dict__'):
+                        model_dict = model.__dict__.copy()
+                    else:
+                        model_dict = dict(model)
+                    
+                    model_dict['capabilities'] = caps.copy() # Use copy to avoid shared dict issues
+                    
+                    # Determine cloud status based on tag ONLY
+                    model_tag = model_full_name.split(':')[-1] if ':' in model_full_name else 'latest'
+                    model_dict['capabilities']['cloud'] = 'cloud' in model_tag.lower()
+                    
+                    enriched_models.append(model_dict)
+
+                if cache_updated:
+                    tool.config_data['capabilities_cache'] = capabilities_cache
+                    tool.save()
+
+                context['models'] = enriched_models
             except Exception as e:
                 context['ollama_error'] = f"Could not connect to Ollama API: {str(e)}"
         return context

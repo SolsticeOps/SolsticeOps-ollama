@@ -19,11 +19,26 @@
                     <label class="form-label small fw-bold text-muted">Selected Model</label>
                     <select id="chat-model-select" class="form-select form-select-sm border-secondary">
                         {% for model in models %}
-                        <option value="{{ model.model }}">{{ model.model }}</option>
+                        <option value="{{ model.model }}" 
+                                data-tools="{{ model.capabilities.tools|yesno:'true,false' }}"
+                                data-vision="{{ model.capabilities.vision|yesno:'true,false' }}"
+                                data-thinking="{{ model.capabilities.thinking|yesno:'true,false' }}"
+                                data-embedding="{{ model.capabilities.embedding|yesno:'true,false' }}"
+                                data-cloud="{{ model.capabilities.cloud|yesno:'true,false' }}">
+                            {{ model.model }}
+                        </option>
                         {% empty %}
                         <option disabled selected>No models available</option>
                         {% endfor %}
                     </select>
+                </div>
+
+                <div class="mb-4" id="thinking-toggle-container" style="display: none;">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="thinking-switch" 
+                               onchange="document.getElementById('thinking-input').value = this.checked;">
+                        <label class="form-check-label small fw-bold text-muted" for="thinking-switch">Enable Thinking</label>
+                    </div>
                 </div>
 
 
@@ -137,6 +152,7 @@
                       hx-target="#chat-history-container" 
                       hx-swap="beforeend"
                       hx-indicator="#chat-indicator"
+                      hx-encoding="multipart/form-data"
                       hx-request='{"timeout": 120000}'
                       onsubmit="document.getElementById('ollama-chat-root').handleFormSubmit(this)"
                       class="position-relative">
@@ -150,18 +166,61 @@
                     <input type="hidden" id="top-p-input" name="top_p" value="0.9">
                     <input type="hidden" id="num-ctx-input" name="num_ctx" value="4096">
                     <input type="hidden" id="total-tokens-input" name="total_tokens" value="0">
+                    <input type="hidden" id="thinking-input" name="thinking" value="false">
                     
                     <div id="history-data-container" style="display: none;"></div>
                     
+                    <div class="mb-2 d-flex align-items-center gap-2" id="attachment-preview-container" style="display:none !important;">
+                        <div class="position-relative">
+                            <div id="attachment-preview-box" class="rounded border border-secondary border-opacity-25 d-flex align-items-center justify-content-center bg-dark" style="height: 50px; width: 50px; overflow: hidden;">
+                                <img id="attachment-preview-img" src="" class="w-100 h-100" style="object-fit: cover; display: none;">
+                                <i id="attachment-preview-icon" class="bi bi-file-earmark-text fs-4 text-muted"></i>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 start-100 translate-middle p-0 d-flex align-items-center justify-content-center" 
+                                    style="width: 18px; height: 18px;" onclick="document.getElementById('ollama-chat-root').clearAttachment()">
+                                <i class="bi bi-x" style="font-size: 12px;"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex flex-column overflow-hidden">
+                            <span id="attachment-name" class="small fw-bold text-truncate" style="max-width: 200px;"></span>
+                            <span id="attachment-info" class="x-small text-muted text-truncate"></span>
+                        </div>
+                    </div>
+
                     <div class="input-group shadow-sm">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary d-flex align-items-center justify-content-center px-2 h-100 rounded-0 rounded-start" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Attach Files" style="width: 40px; border-right: 0;">
+                                <i class="bi bi-paperclip fs-6"></i>
+                            </button>
+                            <ul class="dropdown-menu shadow border-secondary border-opacity-25">
+                                <li><a class="dropdown-item small d-flex align-items-center gap-2" href="javascript:void(0)" onclick="document.getElementById('attachment-input-image').click()">
+                                    <i class="bi bi-image text-primary"></i> Image
+                                </a></li>
+                                <li><a class="dropdown-item small d-flex align-items-center gap-2" href="javascript:void(0)" onclick="document.getElementById('attachment-input-video').click()">
+                                    <i class="bi bi-play-btn text-danger"></i> Video
+                                </a></li>
+                                <li><a class="dropdown-item small d-flex align-items-center gap-2" href="javascript:void(0)" onclick="document.getElementById('attachment-input-audio').click()">
+                                    <i class="bi bi-mic text-success"></i> Audio
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item small d-flex align-items-center gap-2" href="javascript:void(0)" onclick="document.getElementById('attachment-input-file').click()">
+                                    <i class="bi bi-file-earmark-code text-info"></i> Document / Code
+                                </a></li>
+                            </ul>
+                            <input type="file" id="attachment-input-image" name="attachment" style="display:none;" accept="image/*" onchange="document.getElementById('ollama-chat-root').handleAttachment(this, 'image')">
+                            <input type="file" id="attachment-input-video" name="attachment" style="display:none;" accept="video/*" onchange="document.getElementById('ollama-chat-root').handleAttachment(this, 'video')">
+                            <input type="file" id="attachment-input-audio" name="attachment" style="display:none;" accept="audio/*" onchange="document.getElementById('ollama-chat-root').handleAttachment(this, 'audio')">
+                            <input type="file" id="attachment-input-file" name="attachment" style="display:none;" accept="*" onchange="document.getElementById('ollama-chat-root').handleAttachment(this, 'file')">
+                        </div>
                         <textarea name="message" 
                                   placeholder="Message Ollama..." 
                                   class="form-control border-secondary p-2"
-                                  style="resize: none; height: 60px;"
+                                  style="resize: none; height: 43px; min-height: 43px; max-height: 120px; overflow-y: auto; border-left: 0;"
                                   required
+                                  oninput="this.style.height = '43px'; this.style.height = Math.min(this.scrollHeight, 120) + 'px';"
                                   onkeydown="if(event.keyCode == 13 && !event.shiftKey) { event.preventDefault(); this.form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); }"></textarea>
-                        <button type="submit" class="btn btn-primary px-4">
-                            <i class="bi bi-send-fill fs-5"></i>
+                        <button type="submit" class="btn btn-primary px-3">
+                            <i class="bi bi-send-fill fs-6"></i>
                         </button>
                     </div>
 
@@ -198,11 +257,8 @@
             
             // If the content is still escaped (e.g. contains literal \n or \uXXXX),
             // it might be because of how it was stored/transmitted.
-            // But we should try to handle it gracefully.
             if (rawContent.includes('\\n') || rawContent.includes('\\u')) {
                 try {
-                    // Only unescape if it looks like a JSON-escaped string
-                    // This is a bit risky but helps with raw output
                     if (rawContent.startsWith('"') && rawContent.endsWith('"')) {
                         rawContent = JSON.parse(rawContent);
                     } else {
@@ -214,7 +270,39 @@
             if (!element.getAttribute('data-raw-content')) {
                 element.setAttribute('data-raw-content', rawContent);
             }
-            element.innerHTML = marked.parse(rawContent.trim());
+
+            // Handle <thought> tags (DeepSeek-R1, Qwen3, etc.)
+            let processedContent = rawContent.trim();
+            
+            // Check if we have thoughts to process
+            if (processedContent.includes('<thought>')) {
+                let thoughts = [];
+                // Use a safe placeholder that won't be messed up by marked
+                let placeholderContent = processedContent.replace(/<thought>([\s\S]*?)(?:<\/thought>|$)/g, function(match, p1) {
+                    thoughts.push(p1.trim());
+                    return `[[THOUGHT_PLACEHOLDER_${thoughts.length - 1}]]`;
+                });
+
+                let html = marked.parse(placeholderContent);
+                thoughts.forEach((thought, i) => {
+                    let thoughtHtml = `
+                        <details class="mb-3 border border-secondary border-opacity-10 rounded-3 overflow-hidden shadow-sm" style="background-color: rgba(255,255,255,0.02);">
+                            <summary class="p-2 px-3 small fw-bold text-muted cursor-pointer d-flex align-items-center gap-2" style="list-style: none; background-color: rgba(255,255,255,0.04);">
+                                <i class="bi bi-lightbulb text-primary"></i> Thinking Process...
+                                <i class="bi bi-chevron-down ms-auto x-small opacity-50"></i>
+                            </summary>
+                            <div class="p-3 pt-2 x-small text-muted border-top border-secondary border-opacity-10" style="font-style: italic; line-height: 1.6;">
+                                ${marked.parse(thought)}
+                            </div>
+                        </details>`;
+                    // Use a more robust replacement that handles cases where marked might have wrapped the placeholder in tags
+                    html = html.replace(`[[THOUGHT_PLACEHOLDER_${i}]]`, thoughtHtml);
+                });
+                element.innerHTML = html;
+            } else {
+                element.innerHTML = marked.parse(processedContent);
+            }
+
             element.querySelectorAll('pre code').forEach((block) => {
                 hljs.highlightElement(block);
             });
@@ -223,13 +311,34 @@
 
         function updateModel() {
             var modelSelect = document.getElementById('chat-model-select');
+            var selectedOption = modelSelect.options[modelSelect.selectedIndex];
             var modelInput = document.getElementById('form-model-input');
             var thinkingText = document.getElementById('thinking-text');
+            var thinkingToggle = document.getElementById('thinking-toggle-container');
+            var apiTokenField = document.getElementById('api-token-input-field');
             
             if (modelSelect && modelInput) {
                 modelInput.value = modelSelect.value;
                 if (thinkingText) {
                     thinkingText.innerText = modelSelect.value + ' thinks...';
+                }
+
+                // Show thinking toggle if supported
+                var hasThinking = selectedOption.getAttribute('data-thinking') === 'true';
+                if (thinkingToggle) {
+                    thinkingToggle.style.display = hasThinking ? 'block' : 'none';
+                }
+
+                // Highlight API token field if cloud model
+                var isCloud = selectedOption.getAttribute('data-cloud') === 'true';
+                if (apiTokenField) {
+                    if (isCloud) {
+                        apiTokenField.classList.add('border-warning');
+                        apiTokenField.placeholder = "Required for Cloud model...";
+                    } else {
+                        apiTokenField.classList.remove('border-warning');
+                        apiTokenField.placeholder = "Optional API key...";
+                    }
                 }
             }
         }
@@ -243,11 +352,47 @@
 
         // Define functions on the root element to avoid global scope pollution
         root.handleFormSubmit = function(form) {
+            var modelSelect = document.getElementById('chat-model-select');
+            var selectedOption = modelSelect.options[modelSelect.selectedIndex];
+            var isCloud = selectedOption.getAttribute('data-cloud') === 'true';
+            var apiToken = document.getElementById('api-token-input-field').value;
+
+            if (isCloud && !apiToken.trim()) {
+                alert('API Token is required for cloud models.');
+                return false;
+            }
+
             var textarea = form.querySelector('textarea');
             var userMsg = textarea.value;
             if (!userMsg.trim()) return;
             
             var container = document.getElementById('chat-history-container');
+            var attachmentPreviewImg = document.getElementById('attachment-preview-img');
+            var attachmentName = document.getElementById('attachment-name').innerText;
+            var attachmentInfo = document.getElementById('attachment-info').innerText;
+            var attachmentHtml = '';
+            
+            if (attachmentName) {
+                if (attachmentPreviewImg && attachmentPreviewImg.src && !attachmentPreviewImg.src.endsWith('#') && attachmentPreviewImg.style.display !== 'none') {
+                    attachmentHtml = `
+                        <div class="mb-2">
+                            <img src="${attachmentPreviewImg.src}" class="rounded border border-secondary border-opacity-25" style="max-height: 200px; max-width: 100%; object-fit: contain;">
+                        </div>
+                    `;
+                } else {
+                    // File icon for non-image attachments
+                    attachmentHtml = `
+                        <div class="mb-2 p-2 rounded bg-dark bg-opacity-25 border border-secondary border-opacity-10 d-flex align-items-center gap-2" style="max-width: fit-content;">
+                            <i class="bi bi-file-earmark-code fs-4 text-primary"></i>
+                            <div class="d-flex flex-column overflow-hidden">
+                                <span class="small fw-bold text-truncate" style="max-width: 200px;">${attachmentName}</span>
+                                <span class="x-small text-muted">${attachmentInfo}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
             var userHtml = `
                 <div class="d-flex mb-4 flex-row-reverse animate-fade-in">
                     <div class="flex-shrink-0 ms-3">
@@ -257,16 +402,19 @@
                     </div>
                     <div class="flex-grow-1 text-end d-flex flex-column align-items-end">
                         <div class="fw-bold small mb-1">You</div>
-                        <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-main small shadow-sm markdown-content" style="max-width: 85%; text-align: left;">
-                            ${userMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}
+                        <div class="d-flex flex-column align-items-end gap-2" style="max-width: 85%;">
+                            ${attachmentHtml}
+                            <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-main small shadow-sm markdown-content w-100" style="text-align: left;">
+                                <div class="message-text">${userMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
             container.insertAdjacentHTML('beforeend', userHtml);
             
-            // Re-render markdown for the message we just added (in case it has markdown)
-            const lastMsg = container.lastElementChild.querySelector('.markdown-content');
+            // Re-render markdown for the message we just added
+            const lastMsg = container.lastElementChild.querySelector('.message-text');
             if (lastMsg) {
                 renderMarkdown(lastMsg);
                 lastMsg.setAttribute('data-rendered', 'true');
@@ -274,7 +422,75 @@
 
             container.scrollTop = container.scrollHeight;
             
-            setTimeout(() => { textarea.value = ''; }, 10);
+            setTimeout(() => { 
+                textarea.value = ''; 
+                textarea.style.height = '38px';
+                root.clearAttachment();
+            }, 10);
+            return true;
+        };
+
+        root.handleAttachment = function(input, type) {
+            if (input.files && input.files[0]) {
+                var file = input.files[0];
+                var reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    var previewImg = document.getElementById('attachment-preview-img');
+                    var previewIcon = document.getElementById('attachment-preview-icon');
+                    var container = document.getElementById('attachment-preview-container');
+                    var name = document.getElementById('attachment-name');
+                    var info = document.getElementById('attachment-info');
+                    
+                    name.innerText = file.name;
+                    info.innerText = (file.size / 1024).toFixed(1) + ' KB';
+                    
+                    if (type === 'image') {
+                        previewImg.src = e.target.result;
+                        previewImg.style.display = 'block';
+                        previewIcon.style.display = 'none';
+                    } else {
+                        previewImg.src = '';
+                        previewImg.style.display = 'none';
+                        previewIcon.style.display = 'block';
+                        
+                        // Pick icon based on type
+                        previewIcon.className = 'bi fs-4 text-muted';
+                        if (type === 'video') previewIcon.classList.add('bi-play-btn');
+                        else if (type === 'audio') previewIcon.classList.add('bi-mic');
+                        else previewIcon.classList.add('bi-file-earmark-code');
+                    }
+                    
+                    container.style.setProperty('display', 'flex', 'important');
+                };
+                
+                if (type === 'image' || type === 'file') {
+                    // For files we might want to read as text later if they are small, 
+                    // but for preview dataURL is fine for images.
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsDataURL(file);
+                }
+            }
+        };
+
+        root.clearAttachment = function() {
+            var inputs = ['attachment-input-image', 'attachment-input-video', 'attachment-input-audio', 'attachment-input-file'];
+            inputs.forEach(id => {
+                var el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            
+            var previewImg = document.getElementById('attachment-preview-img');
+            var container = document.getElementById('attachment-preview-container');
+            var name = document.getElementById('attachment-name');
+            
+            if (previewImg) {
+                previewImg.src = '';
+                previewImg.style.display = 'none';
+            }
+            if (name) name.innerText = '';
+            if (container) container.style.setProperty('display', 'none', 'important');
         };
 
         root.clearChat = function() {
@@ -289,17 +505,39 @@
         };
 
         root.showRequestPreview = function() {
-            var model = document.getElementById('chat-model-select').value;
+            var modelSelect = document.getElementById('chat-model-select');
+            var selectedOption = modelSelect.options[modelSelect.selectedIndex];
+            var model = modelSelect.value;
+            
+            var hasTools = selectedOption.getAttribute('data-tools') === 'true';
+            var hasVision = selectedOption.getAttribute('data-vision') === 'true';
+            var hasThinking = selectedOption.getAttribute('data-thinking') === 'true';
+            var thinkingEnabled = document.getElementById('thinking-switch').checked;
+
             var temp = document.getElementById('temp-range').value;
             var topP = document.getElementById('top-p-range').value;
             var numCtx = document.getElementById('ctx-select').value;
             var system = document.getElementById('system-prompt-textarea').value;
+            
+            if (hasThinking) {
+                if (thinkingEnabled) {
+                    system = (system ? system + "\n" : "") + "Always reason step by step inside <thought> tags before providing your final answer.";
+                } else {
+                    system = (system ? system + "\n" : "") + "Do not use <thought> tags or reasoning process. Answer directly.";
+                }
+            }
+
             var role = document.getElementById('user-role-select').value;
             var token = document.getElementById('api-token-input-field').value;
             
             var messages = [];
             if (system) messages.push({role: 'system', content: system});
-            messages.push({role: role, content: 'Hello!'});
+            
+            var userMessage = {role: role, content: 'Hello!'};
+            if (hasVision) {
+                userMessage.images = ["<base64_image_data>"];
+            }
+            messages.push(userMessage);
 
             var payload = {
                 model: model,
@@ -311,6 +549,27 @@
                     num_ctx: parseInt(numCtx)
                 }
             };
+
+            // Add tools if supported
+            if (hasTools) {
+                payload.tools = [
+                    {
+                        type: 'function',
+                        function: {
+                            name: 'get_weather',
+                            description: 'Get the current weather in a given location',
+                            parameters: {
+                                type: 'object',
+                                properties: {
+                                    location: { type: 'string', description: 'The city and state, e.g. San Francisco, CA' },
+                                    unit: { type: 'string', enum: ['celsius', 'fahrenheit'] }
+                                },
+                                required: ['location']
+                            }
+                        }
+                    }
+                ];
+            }
 
             var jsonPayload = JSON.stringify(payload, null, 2);
             
@@ -327,6 +586,7 @@
                 `response = client.chat(\n` +
                 `    model='${model}',\n` +
                 `    messages=${JSON.stringify(messages, null, 4)},\n` +
+                (hasTools ? `    tools=${JSON.stringify(payload.tools, null, 4)},\n` : "") +
                 `    options={\n` +
                 `        'temperature': ${temp},\n` +
                 `        'top_p': ${topP},\n` +
@@ -343,6 +603,7 @@
                 `const response = await client.chat({\n` +
                 `  model: '${model}',\n` +
                 `  messages: ${JSON.stringify(messages, null, 2)},\n` +
+                (hasTools ? `  tools: ${JSON.stringify(payload.tools, null, 2)},\n` : "") +
                 `  options: {\n` +
                 `    temperature: ${temp},\n` +
                 `    top_p: ${topP},\n` +
@@ -412,7 +673,11 @@
     }
     .markdown-content code {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.9em;
+        font-size: 0.85em;
+    }
+    .message-text {
+        font-size: 0.85rem;
+        line-height: 1.5;
     }
     .markdown-content p:last-child {
         margin-bottom: 0;
