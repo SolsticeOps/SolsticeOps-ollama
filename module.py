@@ -182,7 +182,23 @@ class Module(BaseModule):
                     tool.config_data['capabilities_cache'] = capabilities_cache
                     tool.save()
 
-                context['models'] = enriched_models
+                # Search and Pagination
+                from core.utils import paginate_list
+                search_query = request.GET.get('search', '')
+                page = request.GET.get('page', 1)
+                per_page = request.GET.get('per_page', 10)
+                
+                pagination = paginate_list(
+                    enriched_models, 
+                    page, 
+                    per_page, 
+                    search_query=search_query, 
+                    search_fields=['model']
+                )
+                
+                context['models'] = pagination['items']
+                context['pagination'] = pagination
+                context['search_query'] = search_query
             except Exception as e:
                 context['ollama_error'] = f"Could not connect to Ollama API: {str(e)}"
         return context

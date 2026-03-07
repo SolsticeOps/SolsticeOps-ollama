@@ -6,8 +6,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, StreamingHttpResponse
 from django.contrib.auth.decorators import login_required
 from core.models import Tool
+from core.utils import devops_admin_required
 
 @login_required
+@devops_admin_required
 def pull_model(request):
     if request.method == 'POST':
         model_name = request.POST.get('model_name')
@@ -71,6 +73,7 @@ def pull_model(request):
     return redirect('/tool/ollama/?tab=models')
 
 @login_required
+@devops_admin_required
 def delete_model(request):
     if request.method == 'POST':
         model_name = request.POST.get('model_name')
