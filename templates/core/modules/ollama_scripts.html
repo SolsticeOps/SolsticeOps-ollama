@@ -80,7 +80,7 @@
                         <div class="col-12">
                             <label class="form-label small fw-bold text-muted">Parameters (JSON Schema)</label>
                             <div id="parameters-editor" class="border border-secondary border-opacity-25 rounded" style="height: 200px;"></div>
-                            <textarea name="parameters" id="tool-parameters" class="d-none" required></textarea>
+                            <textarea name="parameters" id="tool-parameters" class="d-none"></textarea>
                         </div>
                         <div class="col-12">
                             <label class="form-label small fw-bold text-muted">Python Execution Code (Optional)</label>
@@ -129,8 +129,17 @@
         // Sync editors with hidden textareas on form submit
         const toolForm = document.getElementById('tool-form');
         if (toolForm) {
-            toolForm.addEventListener('submit', function() {
-                document.getElementById('tool-parameters').value = parametersEditor.getValue();
+            toolForm.addEventListener('submit', function(e) {
+                const params = parametersEditor.getValue();
+                try {
+                    JSON.parse(params);
+                } catch (err) {
+                    alert('Invalid JSON in Parameters field: ' + err.message);
+                    e.preventDefault();
+                    return;
+                }
+                
+                document.getElementById('tool-parameters').value = params;
                 document.getElementById('tool-python-code').value = pythonEditor.getValue();
             });
         }
