@@ -1,0 +1,76 @@
+<div class="p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="fw-bold mb-1">Model Tools</h5>
+            <p class="text-muted small mb-0">Define functions that models can call during chat sessions.</p>
+        </div>
+        <button class="btn btn-primary btn-sm d-flex align-items-center gap-2 {% if not user.can_manage_infrastructure %}disabled opacity-50{% endif %}" 
+                {% if user.can_manage_infrastructure %}data-bs-toggle="modal" data-bs-target="#toolModal" onclick="resetToolForm()"{% else %}disabled{% endif %}>
+            <i class="bi bi-plus-lg"></i> Add Tool
+        </button>
+    </div>
+
+    <div class="row g-4">
+        {% for t in tool.config_data.ollama_tools %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm border-secondary border-opacity-10">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="fw-bold mb-0 text-primary">{{ t.name }}</h6>
+                        <div class="dropdown">
+                            <button class="btn btn-link btn-sm p-0 text-muted {% if not user.can_manage_infrastructure %}disabled opacity-25{% endif %}" 
+                                    {% if user.can_manage_infrastructure %}data-bs-toggle="dropdown"{% else %}disabled{% endif %}>
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            {% if user.can_manage_infrastructure %}
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-secondary border-opacity-25">
+                                <li><a class="dropdown-item small d-flex align-items-center gap-2" href="javascript:void(0)" 
+                                       data-bs-toggle="modal" data-bs-target="#toolModal"
+                                       onclick="editTool('{{ t.id|escapejs }}')">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="{% url 'ollama_delete_tool' %}" method="POST" onsubmit="return confirm('Are you sure you want to delete this tool?')">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="tool_id" value="{{ t.id }}">
+                                        <button type="submit" class="dropdown-item small d-flex align-items-center gap-2 text-danger">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <p class="small text-muted mb-3" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 3em;">
+                        {{ t.description }}
+                    </p>
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 fw-normal">
+                            {{ t.parameters.properties|length }} params
+                        </span>
+                        {% if t.python_code %}
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fw-normal">
+                            Python Code
+                        </span>
+                        {% else %}
+                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 fw-normal">
+                            Mock
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted mb-3">
+                <i class="bi bi-tools fs-1 opacity-25"></i>
+            </div>
+            <h6>No tools defined yet</h6>
+            <p class="small text-muted">Tools allow models to perform actions like fetching data or running code.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>

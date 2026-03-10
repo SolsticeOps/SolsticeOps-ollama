@@ -210,6 +210,8 @@ class Module(BaseModule):
             return render(request, 'core/partials/ollama_models.html', context)
         elif target == 'chat':
             return render(request, 'core/partials/ollama_chat.html', context)
+        elif target == 'tools':
+            return render(request, 'core/partials/ollama_tools.html', context)
         return None
 
     def install(self, request, tool):
@@ -245,6 +247,7 @@ class Module(BaseModule):
                 'hx_auto_refresh': 'every 5s [document.getElementById(\'ollama-pull-input\') && document.getElementById(\'ollama-pull-input\').value === \'\' && document.activeElement.tagName !== \'INPUT\' && document.activeElement.tagName !== \'SELECT\' && document.activeElement.tagName !== \'TEXTAREA\']'
             },
             {'id': 'chat', 'label': 'Demo Chat', 'template': 'core/partials/ollama_chat.html', 'hx_get': '/tool/ollama/?tab=chat'},
+            {'id': 'tools', 'label': 'Tools', 'template': 'core/partials/ollama_tools.html', 'hx_get': '/tool/ollama/?tab=tools'},
         ]
 
     def get_urls(self):
@@ -253,6 +256,15 @@ class Module(BaseModule):
             path('ollama/model/pull/', views.pull_model, name='ollama_pull_model'),
             path('ollama/model/delete/', views.delete_model, name='ollama_delete_model'),
             path('ollama/chat/send/', views.chat_send, name='ollama_chat_send'),
+            path('ollama/tools/save/', views.save_tool, name='ollama_save_tool'),
+            path('ollama/tools/delete/', views.delete_tool, name='ollama_delete_tool'),
+        ]
+
+    def get_websocket_urls(self):
+        from django.urls import re_path
+        from . import consumers
+        return [
+            re_path(r'ws/ollama/chat/$', consumers.OllamaChatConsumer.as_asgi()),
         ]
 
     def get_icon_class(self):

@@ -1,4 +1,10 @@
 <!-- Ollama Modals -->
+<!-- Ace Editor for Tool Editing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/theme-monokai.min.js"></script>
+
 <div class="modal fade" id="requestPreviewModal" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-secondary">
@@ -47,4 +53,121 @@
             });
         }
     };
+</script>
+
+<!-- Tool Modal -->
+<div class="modal fade" id="toolModal" tabindex="-1" aria-hidden="true" style="z-index: 1080;">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-secondary">
+            <div class="modal-header border-bottom border-secondary border-opacity-10">
+                <h5 class="modal-title fw-bold" id="tool-modal-title">Add New Tool</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="tool-form" action="{% url 'ollama_save_tool' %}" method="POST">
+                {% csrf_token %}
+                <input type="hidden" id="tool-id-input" name="tool_id" value="">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Tool Name</label>
+                            <input type="text" name="name" id="tool-name" class="form-control form-control-sm border-secondary border-opacity-25" placeholder="e.g. get_weather" required>
+                            <div class="form-text x-small opacity-50">The name the model will use to call this tool.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Description</label>
+                            <textarea name="description" id="tool-description" class="form-control form-control-sm border-secondary border-opacity-25" rows="2" placeholder="Describe what the tool does and when to use it..." required></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Parameters (JSON Schema)</label>
+                            <div id="parameters-editor" class="border border-secondary border-opacity-25 rounded" style="height: 200px;"></div>
+                            <textarea name="parameters" id="tool-parameters" class="d-none" required></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Python Execution Code (Optional)</label>
+                            <div id="python-code-editor" class="border border-secondary border-opacity-25 rounded" style="height: 220px;"></div>
+                            <textarea name="python_code" id="tool-python-code" class="d-none"></textarea>
+                            <div class="form-text x-small opacity-50">If provided, this code will be executed when the tool is called. Use <code>args</code> variable for inputs and set <code>result</code> for output.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary border-opacity-10">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-4">Save Tool</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{ tool.config_data.ollama_tools|json_script:"tools-data" }}
+
+<script>
+    let parametersEditor, pythonEditor;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Ace Editors
+        parametersEditor = ace.edit("parameters-editor");
+        parametersEditor.setTheme("ace/theme/monokai");
+        parametersEditor.session.setMode("ace/mode/json");
+        parametersEditor.setShowPrintMargin(false);
+        parametersEditor.setOptions({
+            fontSize: "12px",
+            useSoftTabs: true,
+            tabSize: 2
+        });
+
+        pythonEditor = ace.edit("python-code-editor");
+        pythonEditor.setTheme("ace/theme/monokai");
+        pythonEditor.session.setMode("ace/mode/python");
+        pythonEditor.setShowPrintMargin(false);
+        pythonEditor.setOptions({
+            fontSize: "12px",
+            useSoftTabs: true,
+            tabSize: 4
+        });
+
+        // Sync editors with hidden textareas on form submit
+        const toolForm = document.getElementById('tool-form');
+        if (toolForm) {
+            toolForm.addEventListener('submit', function() {
+                document.getElementById('tool-parameters').value = parametersEditor.getValue();
+                document.getElementById('tool-python-code').value = pythonEditor.getValue();
+            });
+        }
+    });
+
+    function resetToolForm() {
+        document.getElementById('tool-modal-title').innerText = 'Add New Tool'; 
+        document.getElementById('tool-form').reset();
+        document.getElementById('tool-id-input').value = '';
+        
+        const defaultSchema = {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "The city and state, e.g. San Francisco, CA"
+                }
+            },
+            "required": ["location"]
+        };
+        
+        parametersEditor.setValue(JSON.stringify(defaultSchema, null, 2), -1);
+        pythonEditor.setValue("# Use 'args' dict for inputs, set 'result' variable for output\n# Example:\n# result = f'Weather in {args[\"location\"]} is sunny, 25°C'", -1);
+    }
+
+    function editTool(id) {
+        const data = JSON.parse(document.getElementById('tools-data').textContent);
+        const t = data.find(x => x.id === id);
+        
+        if (t) {
+            document.getElementById('tool-modal-title').innerText = 'Edit Tool';
+            document.getElementById('tool-id-input').value = t.id;
+            document.getElementById('tool-name').value = t.name;
+            document.getElementById('tool-description').value = t.description;
+            
+            parametersEditor.setValue(JSON.stringify(t.parameters, null, 2), -1);
+            pythonEditor.setValue(t.python_code || '', -1);
+        }
+    }
 </script>

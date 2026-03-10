@@ -1,4 +1,5 @@
-<div class="row g-3" id="ollama-chat-root" style="height: calc(100vh - 100px); min-height: 500px;">
+{% load core_tags %}
+<div class="row g-3" id="ollama-chat-root" style="height: calc(100vh - 60px); min-height: 600px;">
     <!-- Highlight.js for Request Preview -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -9,14 +10,17 @@
 
     <!-- Settings Sidebar -->
     <div class="col-md-3 h-100">
-        <div class="card shadow-sm border-0 h-100 overflow-y-auto">
-            <div class="card-body p-4" style="padding-top:5px !important;">
-                <h6 class="fw-bold mb-4 d-flex align-items-center">
+        <div class="card shadow-sm border-0 h-100 overflow-y-auto" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <style>
+                .overflow-y-auto::-webkit-scrollbar { display: none; }
+            </style>
+            <div class="card-body p-3" style="padding-top:5px !important;">
+                <h6 class="fw-bold mb-3 d-flex align-items-center" style="font-size: 0.9rem;">
                     <i class="bi bi-sliders me-2"></i> LLM Settings
                 </h6>
                 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-muted">Selected Model</label>
+                <div class="mb-3">
+                    <label class="form-label x-small fw-bold text-muted mb-1">Selected Model</label>
                     <select id="chat-model-select" class="form-select form-select-sm border-secondary">
                         {% for model in models %}
                         <option value="{{ model.model }}" 
@@ -33,35 +37,57 @@
                     </select>
                 </div>
 
-                <div class="mb-4" id="thinking-toggle-container" style="display: none;">
+                <div class="mb-3" id="thinking-toggle-container" style="display: none;">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="thinking-switch" 
                                onchange="document.getElementById('thinking-input').value = this.checked;">
-                        <label class="form-check-label small fw-bold text-muted" for="thinking-switch">Enable Thinking</label>
+                        <label class="form-check-label x-small fw-bold text-muted" for="thinking-switch">Enable Thinking</label>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="tools-selection-container" style="display: none;">
+                    <label class="form-label x-small fw-bold text-muted mb-1">Available Tools</label>
+                    <div class="d-flex flex-wrap gap-1 p-2 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-10" style="max-height: 120px; overflow-y: auto;">
+                        {% for t in tool.config_data.ollama_tools %}
+                        <div class="tool-badge-item">
+                            <input type="checkbox" class="tool-checkbox d-none" value="{{ t.id }}" id="tool-{{ t.id }}" 
+                                   data-name="{{ t.name }}" data-description="{{ t.description }}" 
+                                   data-parameters="{{ t.parameters|jsonify }}"
+                                   onchange="toggleToolBadge(this)" checked>
+                            <label class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-50 cursor-pointer py-1 px-2 transition-all x-small" 
+                                   for="tool-{{ t.id }}" id="label-tool-{{ t.id }}" title="{{ t.description }}">
+                                <i class="bi bi-tools me-1"></i> {{ t.name }}
+                            </label>
+                        </div>
+                        {% empty %}
+                        <div class="x-small text-muted text-center py-1 w-100">
+                            No tools defined. <a href="javascript:void(0)" class="text-primary text-decoration-none" onclick="document.querySelector('[data-bs-target=\'#tools\']').click()">Create one</a>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
 
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <div class="d-flex justify-content-between">
-                        <label class="form-label small fw-bold text-muted">Temperature</label>
-                        <span id="temp-val" class="small text-primary">0.7</span>
+                        <label class="form-label x-small fw-bold text-muted mb-1">Temperature</label>
+                        <span id="temp-val" class="x-small text-primary">0.7</span>
                     </div>
                     <input type="range" class="form-range" min="0" max="2" step="0.1" value="0.7" id="temp-range" 
                            oninput="document.getElementById('temp-val').innerText = this.value; document.getElementById('temperature-input').value = this.value;">
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-3">
                     <div class="d-flex justify-content-between">
-                        <label class="form-label small fw-bold text-muted">Top-P</label>
-                        <span id="top-p-val" class="small text-primary">0.9</span>
+                        <label class="form-label x-small fw-bold text-muted mb-1">Top-P</label>
+                        <span id="top-p-val" class="x-small text-primary">0.9</span>
                     </div>
                     <input type="range" class="form-range" min="0" max="1" step="0.05" value="0.9" id="top-p-range"
                            oninput="document.getElementById('top-p-val').innerText = this.value; document.getElementById('top-p-input').value = this.value;">
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-muted">Context Window</label>
+                <div class="mb-3">
+                    <label class="form-label x-small fw-bold text-muted mb-1">Context Window</label>
                     <select id="ctx-select" class="form-select form-select-sm border-secondary"
                             onchange="document.getElementById('num-ctx-input').value = this.value;">
                         <option value="2048">2048 tokens</option>
@@ -72,22 +98,22 @@
                     </select>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-muted">API Token (Cloud)</label>
+                <div class="mb-3">
+                    <label class="form-label x-small fw-bold text-muted mb-1">API Token (Cloud)</label>
                     <input type="password" id="api-token-input-field" class="form-control form-control-sm border-secondary" 
                            placeholder="Optional API key..."
                            oninput="document.getElementById('api-token-input').value = this.value;">
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-muted">System Prompt</label>
+                <div class="mb-3">
+                    <label class="form-label x-small fw-bold text-muted mb-1">System Prompt</label>
                     <textarea id="system-prompt-textarea" class="form-control form-control-sm border-secondary" 
-                              style="resize: none; height: 80px;" placeholder="Optional system instructions..."
+                              style="resize: none; height: 60px; font-size: 0.75rem;" placeholder="Optional system instructions..."
                               oninput="document.getElementById('system-prompt-input').value = this.value;"></textarea>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-muted">User Role</label>
+                <div class="mb-3">
+                    <label class="form-label x-small fw-bold text-muted mb-1">User Role</label>
                     <select id="user-role-select" class="form-select form-select-sm border-secondary"
                             onchange="document.getElementById('user-role-input').value = this.value;">
                         <option value="user" selected>User</option>
@@ -96,15 +122,15 @@
                 </div>
 
 
-                <div class="mb-4">
-                    <button class="btn btn-sm btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2" 
+                <div class="mb-3">
+                    <button class="btn btn-sm btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2 x-small py-2" 
                             onclick="document.getElementById('ollama-chat-root').showRequestPreview()">
                         <i class="bi bi-code-slash"></i> Request Preview
                     </button>
                 </div>
 
-                <div class="mt-auto pt-4 border-top border-secondary border-opacity-10">
-                    <button class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2" 
+                <div class="mt-auto pt-3 border-top border-secondary border-opacity-10">
+                    <button class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 x-small py-2" 
                             onclick="document.getElementById('ollama-chat-root').clearChat()">
                         <i class="bi bi-trash"></i> Clear History
                     </button>
@@ -148,27 +174,19 @@
 
 
             <div class="card-footer bg-transparent p-4 border-top border-secondary border-opacity-10">
-                <form hx-post="{% url 'ollama_chat_send' %}" 
-                      hx-target="#chat-history-container" 
-                      hx-swap="beforeend"
-                      hx-indicator="#chat-indicator"
-                      hx-encoding="multipart/form-data"
-                      hx-request='{"timeout": 120000}'
-                      onsubmit="document.getElementById('ollama-chat-root').handleFormSubmit(this)"
-                      class="position-relative">
+                <form id="ollama-chat-form" onsubmit="return false;" class="position-relative">
                     {% csrf_token %}
                     <input type="hidden" id="history-input" name="history" value="[]">
-                    <input type="hidden" id="form-model-input" name="model" value="">
-                    <input type="hidden" id="system-prompt-input" name="system_prompt" value="">
-                    <input type="hidden" id="api-token-input" name="api_token" value="">
-                    <input type="hidden" id="user-role-input" name="user_role" value="user">
+                    <input type="hidden" id="total-tokens-input" name="total_tokens" value="0">
                     <input type="hidden" id="temperature-input" name="temperature" value="0.7">
                     <input type="hidden" id="top-p-input" name="top_p" value="0.9">
                     <input type="hidden" id="num-ctx-input" name="num_ctx" value="4096">
-                    <input type="hidden" id="total-tokens-input" name="total_tokens" value="0">
+                    <input type="hidden" id="api-token-input" name="api_token" value="">
+                    <input type="hidden" id="system-prompt-input" name="system_prompt" value="">
+                    <input type="hidden" id="user-role-input" name="user_role" value="user">
                     <input type="hidden" id="thinking-input" name="thinking" value="false">
                     
-                    <div id="history-data-container" style="display: none;"></div>
+                    <div id="selected-tools-container" style="display: none;"></div>
                     
                     <div class="mb-2 d-flex align-items-center gap-2" id="attachment-preview-container" style="display:none !important;">
                         <div class="position-relative">
@@ -225,7 +243,7 @@
                     </div>
 
                     
-                    <div id="chat-indicator" class="htmx-indicator position-absolute top-0 start-50 translate-middle-x" style="margin-top: -40px; z-index: 10;">
+                    <div id="chat-indicator" class="htmx-indicator position-absolute top-0 start-50 translate-middle-x" style="margin-top: -40px; z-index: 10; display: none !important;">
                         <div class="bg-primary text-white px-3 py-2 rounded-pill shadow-lg small d-flex align-items-center gap-2">
                             <div class="spinner-border spinner-border-sm" role="status"></div>
                             <span id="thinking-text">Ollama is thinking...</span>
@@ -255,35 +273,31 @@
             if (typeof marked === 'undefined') return;
             let rawContent = element.getAttribute('data-raw-content') || element.textContent;
             
-            // If the content is still escaped (e.g. contains literal \n or \uXXXX),
-            // it might be because of how it was stored/transmitted.
-            if (rawContent.includes('\\n') || rawContent.includes('\\u')) {
-                try {
-                    if (rawContent.startsWith('"') && rawContent.endsWith('"')) {
-                        rawContent = JSON.parse(rawContent);
-                    } else {
-                        rawContent = JSON.parse('"' + rawContent.replace(/"/g, '\\"') + '"');
-                    }
-                } catch (e) {}
-            }
-
             if (!element.getAttribute('data-raw-content')) {
                 element.setAttribute('data-raw-content', rawContent);
             }
 
-            // Handle <thought> tags (DeepSeek-R1, Qwen3, etc.)
             let processedContent = rawContent.trim();
             
-            // Check if we have thoughts to process
+            // Helper to call marked parse safely
+            const parse = (content) => {
+                try {
+                    return typeof marked.parse === 'function' ? marked.parse(content) : marked(content);
+                } catch (e) {
+                    console.error("Marked parsing error:", e);
+                    return content;
+                }
+            };
+
+            // Handle <thought> tags
             if (processedContent.includes('<thought>')) {
                 let thoughts = [];
-                // Use a safe placeholder that won't be messed up by marked
                 let placeholderContent = processedContent.replace(/<thought>([\s\S]*?)(?:<\/thought>|$)/g, function(match, p1) {
                     thoughts.push(p1.trim());
-                    return `[[THOUGHT_PLACEHOLDER_${thoughts.length - 1}]]`;
+                    return `[[THOUGHT_PLACE_HOLDER_${thoughts.length - 1}]]`;
                 });
 
-                let html = marked.parse(placeholderContent);
+                let html = parse(placeholderContent);
                 thoughts.forEach((thought, i) => {
                     let thoughtHtml = `
                         <details class="mb-3 border border-secondary border-opacity-10 rounded-3 overflow-hidden shadow-sm" style="background-color: rgba(255,255,255,0.02);">
@@ -292,15 +306,14 @@
                                 <i class="bi bi-chevron-down ms-auto x-small opacity-50"></i>
                             </summary>
                             <div class="p-3 pt-2 x-small text-muted border-top border-secondary border-opacity-10" style="font-style: italic; line-height: 1.6;">
-                                ${marked.parse(thought)}
+                                ${parse(thought)}
                             </div>
                         </details>`;
-                    // Use a more robust replacement that handles cases where marked might have wrapped the placeholder in tags
-                    html = html.replace(`[[THOUGHT_PLACEHOLDER_${i}]]`, thoughtHtml);
+                    html = html.replace(`[[THOUGHT_PLACE_HOLDER_${i}]]`, thoughtHtml);
                 });
                 element.innerHTML = html;
             } else {
-                element.innerHTML = marked.parse(processedContent);
+                element.innerHTML = parse(processedContent);
             }
 
             element.querySelectorAll('pre code').forEach((block) => {
@@ -311,14 +324,14 @@
 
         function updateModel() {
             var modelSelect = document.getElementById('chat-model-select');
+            if (!modelSelect) return;
             var selectedOption = modelSelect.options[modelSelect.selectedIndex];
-            var modelInput = document.getElementById('form-model-input');
             var thinkingText = document.getElementById('thinking-text');
             var thinkingToggle = document.getElementById('thinking-toggle-container');
+            var toolsToggle = document.getElementById('tools-selection-container');
             var apiTokenField = document.getElementById('api-token-input-field');
             
-            if (modelSelect && modelInput) {
-                modelInput.value = modelSelect.value;
+            if (modelSelect) {
                 if (thinkingText) {
                     thinkingText.innerText = modelSelect.value + ' thinks...';
                 }
@@ -327,6 +340,12 @@
                 var hasThinking = selectedOption.getAttribute('data-thinking') === 'true';
                 if (thinkingToggle) {
                     thinkingToggle.style.display = hasThinking ? 'block' : 'none';
+                }
+
+                // Show tools selection if supported
+                var hasTools = selectedOption.getAttribute('data-tools') === 'true';
+                if (toolsToggle) {
+                    toolsToggle.style.display = hasTools ? 'block' : 'none';
                 }
 
                 // Highlight API token field if cloud model
@@ -343,6 +362,17 @@
             }
         }
 
+        window.toggleToolBadge = function(cb) {
+            const label = document.getElementById('label-tool-' + cb.value);
+            if (cb.checked) {
+                label.classList.remove('bg-secondary', 'bg-opacity-25', 'text-muted');
+                label.classList.add('bg-success', 'bg-opacity-10', 'text-success', 'border-success', 'border-opacity-50');
+            } else {
+                label.classList.add('bg-secondary', 'bg-opacity-25', 'text-muted');
+                label.classList.remove('bg-success', 'bg-opacity-10', 'text-success', 'border-success', 'border-opacity-50');
+            }
+        };
+
         var modelSelect = document.getElementById('chat-model-select');
         if (modelSelect) {
             modelSelect.removeEventListener('change', updateModel);
@@ -350,27 +380,238 @@
             updateModel(); // Initial set
         }
 
+        // WebSocket Setup
+        let socket = null;
+        function connectSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/ollama/chat/`;
+            socket = new WebSocket(wsUrl);
+
+            socket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                handleSocketMessage(data);
+            };
+
+            socket.onclose = function(e) {
+                console.log('Ollama socket closed. Reconnecting in 2s...');
+                setTimeout(connectSocket, 2000);
+            };
+
+            socket.onerror = function(err) {
+                console.error('Ollama socket error:', err);
+                socket.close();
+            };
+        }
+        connectSocket();
+
+        let currentStreamingContainer = null;
+        let currentStreamingTextTarget = null;
+        let currentStreamingLoader = null;
+        let currentStreamingTurnContainer = null;
+
+        function handleSocketMessage(data) {
+            const container = document.getElementById('chat-history-container');
+            const indicator = document.getElementById('chat-indicator');
+
+            if (data.type === 'start_turn') {
+                if (!currentStreamingContainer) {
+                    const model = data.model;
+                    const html = `
+                        <div class="d-flex mb-4 animate-fade-in" id="streaming-response-container">
+                            <div class="flex-shrink-0 me-3">
+                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    <i class="bi bi-robot text-white"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1" id="streaming-turn-container" style="max-width: 85%;">
+                                <div class="fw-bold small mb-1">Ollama <span class="text-muted fw-normal">(${model})</span></div>
+                                <div class="p-3 rounded-3 border border-secondary border-opacity-25 text-main small shadow-sm" 
+                                     style="background-color: var(--card-bg);" id="streaming-content-wrapper">
+                                    <div id="streaming-loader" class="py-1 d-flex align-items-center gap-2 text-muted">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status" style="width: 12px; height: 12px;"></div>
+                                        <span class="fst-italic">Sending request to Ollama...</span>
+                                    </div>
+                                    <div class="markdown-content" id="streaming-text-target"></div>
+                                </div>
+                                <div class="mt-1 ms-1" id="streaming-tokens-target" style="display:none; font-size: 10px; color: var(--muted);">
+                                    <i class="bi bi-lightning-charge-fill me-1"></i><span class="token-count">0</span> tokens
+                                </div>
+                            </div>
+                        </div>`;
+                    container.insertAdjacentHTML('beforeend', html);
+                    currentStreamingContainer = document.getElementById('streaming-response-container');
+                    currentStreamingTurnContainer = document.getElementById('streaming-turn-container');
+                    currentStreamingTextTarget = document.getElementById('streaming-text-target');
+                    currentStreamingLoader = document.getElementById('streaming-loader');
+                }
+            } else if (data.type === 'content') {
+                const contentWrapper = document.getElementById('streaming-content-wrapper');
+                if (contentWrapper) {
+                    const loader = contentWrapper.querySelector('#streaming-loader');
+                    if (loader) loader.remove();
+                }
+                
+                if (!currentStreamingTextTarget) {
+                    if (contentWrapper) {
+                        const newTextHtml = `<div class="markdown-content" id="streaming-text-target"></div>`;
+                        contentWrapper.insertAdjacentHTML('beforeend', newTextHtml);
+                        currentStreamingTextTarget = contentWrapper.lastElementChild;
+                    }
+                }
+
+                let content = data.content;
+                let raw = currentStreamingTextTarget.getAttribute('data-raw-content') || '';
+                raw += content;
+                currentStreamingTextTarget.setAttribute('data-raw-content', raw);
+                
+                // Use textContent for fast streaming, but periodically render markdown
+                currentStreamingTextTarget.textContent = raw;
+                
+                // Only render markdown if we have a significant amount of content or it's been a while
+                // but for now, let's just do it every time to ensure it works
+                if (raw.length > 0) {
+                    renderMarkdown(currentStreamingTextTarget);
+                }
+                
+                container.scrollTop = container.scrollHeight;
+            } else if (data.type === 'tool_call') {
+                const callWrapper = document.getElementById('streaming-content-wrapper');
+                if (callWrapper) {
+                    const loader = callWrapper.querySelector('#streaming-loader');
+                    if (loader) loader.remove();
+                }
+
+                if (currentStreamingTextTarget && currentStreamingTextTarget.getAttribute('data-raw-content')) {
+                    renderMarkdown(currentStreamingTextTarget);
+                    currentStreamingTextTarget.setAttribute('data-rendered', 'true');
+                    currentStreamingTextTarget.removeAttribute('id');
+                } else if (currentStreamingTextTarget) {
+                    // Remove empty text target before showing tool call
+                    currentStreamingTextTarget.remove();
+                }
+
+                // Format arguments for display
+                let argsDisplay = '';
+                if (typeof data.args === 'object') {
+                    const keys = Object.keys(data.args);
+                    if (keys.length === 1) {
+                        argsDisplay = data.args[keys[0]];
+                    } else {
+                        argsDisplay = JSON.stringify(data.args, null, 2);
+                    }
+                } else {
+                    argsDisplay = data.args;
+                }
+
+                const callHtml = `
+                    <div class="alert alert-info py-2 px-3 mt-2 mb-1 border-0 shadow-sm" style="background: rgba(var(--bs-info-rgb), 0.1);">
+                        <div class="d-flex align-items-center gap-2 small mb-2">
+                            <i class="bi bi-cpu"></i> Calling tool: <b>${data.name}</b>
+                        </div>
+                        <pre class="mb-0 p-2 rounded bg-dark bg-opacity-50 border border-info border-opacity-10 x-small font-monospace text-info"><code>${argsDisplay}</code></pre>
+                    </div>`;
+                const wrapper = document.getElementById('streaming-content-wrapper');
+                if (wrapper) wrapper.insertAdjacentHTML('beforeend', callHtml);
+                container.scrollTop = container.scrollHeight;
+            } else if (data.type === 'tool_result') {
+                const resultHtml = `
+                    <details class="mb-2 border border-secondary border-opacity-10 rounded overflow-hidden shadow-sm" style="background-color: rgba(255,255,255,0.02);">
+                        <summary class="p-2 px-3 x-small fw-bold text-muted cursor-pointer d-flex align-items-center gap-2" style="list-style: none; background-color: rgba(255,255,255,0.04);">
+                            <i class="bi bi-check-circle text-success"></i> Tool Result: ${data.name}
+                            <i class="bi bi-chevron-down ms-auto x-small opacity-50"></i>
+                        </summary>
+                        <div class="p-3 pt-2 x-small text-muted border-top border-secondary border-opacity-10 font-monospace" style="white-space: pre-wrap; line-height: 1.4;">${data.result}</div>
+                    </details>`;
+                const wrapper = document.getElementById('streaming-content-wrapper');
+                if (wrapper) wrapper.insertAdjacentHTML('beforeend', resultHtml);
+                
+                // Create new text target for subsequent response
+                const newTextHtml = `<div class="markdown-content mt-2"></div>`;
+                if (wrapper) {
+                    wrapper.insertAdjacentHTML('beforeend', newTextHtml);
+                    currentStreamingTextTarget = wrapper.lastElementChild;
+                    currentStreamingTextTarget.id = 'streaming-text-target';
+                }
+                
+                container.scrollTop = container.scrollHeight;
+            } else if (data.type === 'done') {
+                const loader = document.getElementById('streaming-loader');
+                if (loader) loader.remove();
+                
+                if (currentStreamingTextTarget) {
+                    if (currentStreamingTextTarget.getAttribute('data-raw-content')) {
+                        renderMarkdown(currentStreamingTextTarget);
+                        currentStreamingTextTarget.setAttribute('data-rendered', 'true');
+                    } else {
+                        currentStreamingTextTarget.remove();
+                    }
+                    currentStreamingTextTarget.removeAttribute('id');
+                }
+                
+                const tokensTarget = document.getElementById('streaming-tokens-target');
+                if (tokensTarget) {
+                    tokensTarget.querySelector('.token-count').innerText = data.total_tokens;
+                    tokensTarget.style.display = 'block';
+                    tokensTarget.removeAttribute('id');
+                }
+                
+                if (currentStreamingContainer) currentStreamingContainer.removeAttribute('id');
+                if (currentStreamingTurnContainer) currentStreamingTurnContainer.removeAttribute('id');
+                const wrapper = document.getElementById('streaming-content-wrapper');
+                if (wrapper) wrapper.removeAttribute('id');
+
+                document.getElementById('history-input').value = JSON.stringify(data.history_update);
+                const totalTokensInput = document.getElementById('total-tokens-input');
+                const totalTokensDisplay = document.getElementById('total-tokens-display');
+                const newTotal = parseInt(totalTokensInput.value || 0) + (data.total_tokens || 0);
+                totalTokensInput.value = newTotal;
+                totalTokensDisplay.innerText = newTotal;
+
+                currentStreamingContainer = null;
+                currentStreamingTurnContainer = null;
+                currentStreamingTextTarget = null;
+                currentStreamingLoader = null;
+            } else if (data.type === 'error') {
+                indicator.classList.remove('htmx-request');
+                const errorHtml = `<div class="alert alert-danger small mt-2">${data.message}</div>`;
+                const wrapper = document.getElementById('streaming-content-wrapper') || container;
+                wrapper.insertAdjacentHTML('beforeend', errorHtml);
+                container.scrollTop = container.scrollHeight;
+                
+                currentStreamingContainer = null;
+                currentStreamingTurnContainer = null;
+                currentStreamingTextTarget = null;
+                currentStreamingLoader = null;
+            }
+        }
+
         // Define functions on the root element to avoid global scope pollution
-        root.handleFormSubmit = function(form) {
-            var modelSelect = document.getElementById('chat-model-select');
-            var selectedOption = modelSelect.options[modelSelect.selectedIndex];
-            var isCloud = selectedOption.getAttribute('data-cloud') === 'true';
-            var apiToken = document.getElementById('api-token-input-field').value;
+        root.handleFormSubmit = function() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert('Socket not connected. Please wait or refresh.');
+                return;
+            }
+
+            const modelSelect = document.getElementById('chat-model-select');
+            const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+            const isCloud = selectedOption.getAttribute('data-cloud') === 'true';
+            const apiToken = document.getElementById('api-token-input-field').value;
 
             if (isCloud && !apiToken.trim()) {
                 alert('API Token is required for cloud models.');
-                return false;
+                return;
             }
 
-            var textarea = form.querySelector('textarea');
-            var userMsg = textarea.value;
+            const form = document.getElementById('ollama-chat-form');
+            const textarea = form.querySelector('textarea');
+            const userMsg = textarea.value;
             if (!userMsg.trim()) return;
             
-            var container = document.getElementById('chat-history-container');
-            var attachmentPreviewImg = document.getElementById('attachment-preview-img');
-            var attachmentName = document.getElementById('attachment-name').innerText;
-            var attachmentInfo = document.getElementById('attachment-info').innerText;
-            var attachmentHtml = '';
+            const container = document.getElementById('chat-history-container');
+            const attachmentPreviewImg = document.getElementById('attachment-preview-img');
+            const attachmentName = document.getElementById('attachment-name').innerText;
+            const attachmentInfo = document.getElementById('attachment-info').innerText;
+            let attachmentHtml = '';
             
             if (attachmentName) {
                 if (attachmentPreviewImg && attachmentPreviewImg.src && !attachmentPreviewImg.src.endsWith('#') && attachmentPreviewImg.style.display !== 'none') {
@@ -380,7 +621,6 @@
                         </div>
                     `;
                 } else {
-                    // File icon for non-image attachments
                     attachmentHtml = `
                         <div class="mb-2 p-2 rounded bg-dark bg-opacity-25 border border-secondary border-opacity-10 d-flex align-items-center gap-2" style="max-width: fit-content;">
                             <i class="bi bi-file-earmark-code fs-4 text-primary"></i>
@@ -393,7 +633,7 @@
                 }
             }
 
-            var userHtml = `
+            const userHtml = `
                 <div class="d-flex mb-4 flex-row-reverse animate-fade-in">
                     <div class="flex-shrink-0 ms-3">
                         <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
@@ -404,8 +644,8 @@
                         <div class="fw-bold small mb-1">You</div>
                         <div class="d-flex flex-column align-items-end gap-2" style="max-width: 85%;">
                             ${attachmentHtml}
-                            <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-main small shadow-sm markdown-content w-100" style="text-align: left;">
-                                <div class="message-text">${userMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+                            <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-main small shadow-sm w-100" style="text-align: left;">
+                                <div class="markdown-content message-text"></div>
                             </div>
                         </div>
                     </div>
@@ -413,21 +653,55 @@
             `;
             container.insertAdjacentHTML('beforeend', userHtml);
             
-            // Re-render markdown for the message we just added
             const lastMsg = container.lastElementChild.querySelector('.message-text');
             if (lastMsg) {
+                lastMsg.textContent = userMsg;
+                lastMsg.setAttribute('data-raw-content', userMsg);
                 renderMarkdown(lastMsg);
                 lastMsg.setAttribute('data-rendered', 'true');
             }
 
             container.scrollTop = container.scrollHeight;
+
+            // Prepare payload
+            const selectedTools = [];
+            document.querySelectorAll('.tool-checkbox:checked').forEach(cb => {
+                selectedTools.push(cb.value);
+            });
+
+            const payload = {
+                model: modelSelect.value,
+                message: userMsg,
+                history: JSON.parse(document.getElementById('history-input').value),
+                system_prompt: document.getElementById('system-prompt-textarea').value,
+                temperature: parseFloat(document.getElementById('temp-range').value),
+                top_p: parseFloat(document.getElementById('top-p-range').value),
+                num_ctx: parseInt(document.getElementById('ctx-select').value),
+                selected_tools: selectedTools,
+                api_token: apiToken,
+                thinking: document.getElementById('thinking-switch').checked
+            };
+
+            if (attachmentName && attachmentPreviewImg && attachmentPreviewImg.src && !attachmentPreviewImg.src.endsWith('#') && attachmentPreviewImg.style.display !== 'none') {
+                // Extract base64 from data URL
+                const base64Data = attachmentPreviewImg.src.split(',')[1];
+                if (base64Data) {
+                    payload.images = [base64Data];
+                }
+            }
+
+            socket.send(JSON.stringify(payload));
             
-            setTimeout(() => { 
-                textarea.value = ''; 
-                textarea.style.height = '38px';
-                root.clearAttachment();
-            }, 10);
-            return true;
+            textarea.value = ''; 
+            textarea.style.height = '43px';
+            root.clearAttachment();
+        };
+
+        // Attach submit to form
+        document.getElementById('ollama-chat-form').onsubmit = function(e) {
+            e.preventDefault();
+            root.handleFormSubmit();
+            return false;
         };
 
         root.handleAttachment = function(input, type) {
@@ -539,6 +813,21 @@
             }
             messages.push(userMessage);
 
+            // Add tools if supported and selected
+            var selectedTools = [];
+            if (hasTools) {
+                document.querySelectorAll('.tool-checkbox:checked').forEach(cb => {
+                    selectedTools.push({
+                        type: 'function',
+                        function: {
+                            name: cb.getAttribute('data-name'),
+                            description: cb.getAttribute('data-description'),
+                            parameters: JSON.parse(cb.getAttribute('data-parameters'))
+                        }
+                    });
+                });
+            }
+
             var payload = {
                 model: model,
                 messages: messages,
@@ -550,25 +839,8 @@
                 }
             };
 
-            // Add tools if supported
-            if (hasTools) {
-                payload.tools = [
-                    {
-                        type: 'function',
-                        function: {
-                            name: 'get_weather',
-                            description: 'Get the current weather in a given location',
-                            parameters: {
-                                type: 'object',
-                                properties: {
-                                    location: { type: 'string', description: 'The city and state, e.g. San Francisco, CA' },
-                                    unit: { type: 'string', enum: ['celsius', 'fahrenheit'] }
-                                },
-                                required: ['location']
-                            }
-                        }
-                    }
-                ];
+            if (selectedTools.length > 0) {
+                payload.tools = selectedTools;
             }
 
             var jsonPayload = JSON.stringify(payload, null, 2);
@@ -586,7 +858,7 @@
                 `response = client.chat(\n` +
                 `    model='${model}',\n` +
                 `    messages=${JSON.stringify(messages, null, 4)},\n` +
-                (hasTools ? `    tools=${JSON.stringify(payload.tools, null, 4)},\n` : "") +
+                (selectedTools.length > 0 ? `    tools=${JSON.stringify(payload.tools, null, 4)},\n` : "") +
                 `    options={\n` +
                 `        'temperature': ${temp},\n` +
                 `        'top_p': ${topP},\n` +
@@ -603,7 +875,7 @@
                 `const response = await client.chat({\n` +
                 `  model: '${model}',\n` +
                 `  messages: ${JSON.stringify(messages, null, 2)},\n` +
-                (hasTools ? `  tools: ${JSON.stringify(payload.tools, null, 2)},\n` : "") +
+                (selectedTools.length > 0 ? `  tools: ${JSON.stringify(payload.tools, null, 2)},\n` : "") +
                 `  options: {\n` +
                 `    temperature: ${temp},\n` +
                 `    top_p: ${topP},\n` +

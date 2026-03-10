@@ -22,9 +22,21 @@
     </div>
     <div class="flex-grow-1">
         <div class="fw-bold small mb-1">Ollama <span class="text-muted fw-normal">({{ model }})</span></div>
-        <div class="p-3 rounded-3 border border-secondary border-opacity-25 text-main small shadow-sm markdown-content" style="max-width: 85%; background-color: var(--card-bg);">
+        <div class="p-3 rounded-3 border border-secondary border-opacity-25 text-main small shadow-sm markdown-content" style="max-width: 85%; background-color: var(--card-bg);" data-raw-content="{{ msg.content }}">
             {{ msg.content }}
         </div>
+        {% if msg.tool_calls %}
+        <div class="mt-2">
+            {% for tc in msg.tool_calls %}
+            <div class="alert alert-info py-2 px-3 mb-1 border-0 shadow-sm" style="background: rgba(var(--bs-info-rgb), 0.1); max-width: 85%;">
+                <div class="d-flex align-items-center gap-2 small mb-1">
+                    <i class="bi bi-cpu"></i> Called tool: <b>{{ tc.function.name }}</b>
+                </div>
+                <pre class="mb-0 p-2 rounded bg-dark bg-opacity-50 border border-info border-opacity-10 x-small font-monospace text-info"><code>{{ tc.function.arguments|jsonify }}</code></pre>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
         <div class="mt-1 small text-muted" style="font-size: 10px;">
             <i class="bi bi-cpu me-1"></i> {{ message_tokens }} tokens
         </div>
