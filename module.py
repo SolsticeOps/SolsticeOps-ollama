@@ -3,6 +3,7 @@ import subprocess
 import requests
 import logging
 import os
+import time
 from django.shortcuts import render
 from django.urls import path
 from core.plugin_system import BaseModule
@@ -81,7 +82,7 @@ class Module(BaseModule):
 
         threading.Thread(target=run_update).start()
 
-    def get_context_data(self, request, tool):
+    def get_context_data(self, request, tool, force_refresh=False):
         context = {}
         context['config_data'] = tool.config_data
         
@@ -100,24 +101,36 @@ class Module(BaseModule):
         if tool.status == 'installed':
             try:
                 import ollama
+                from django.core.cache import cache
                 client = ollama.Client(host='http://localhost:11434')
-                models_response = client.list()
                 
-                # Handle both dict and object responses
-                if hasattr(models_response, 'models'):
-                    models = models_response.models
-                elif isinstance(models_response, dict):
-                    models = models_response.get('models', [])
-                else:
-                    models = []
+                # Fetch raw data with caching
+                cache_key_raw = f'ollama_raw_data_{tool.id}'
+                raw_data = cache.get(cache_key_raw)
+                
+                if not raw_data or force_refresh:
+                    models_response = client.list()
+                    # Handle both dict and object responses
+                    if hasattr(models_response, 'models'):
+                        models = models_response.models
+                    elif isinstance(models_response, dict):
+                        models = models_response.get('models', [])
+                    else:
+                        models = []
+                    
+                    raw_data = {
+                        'models': models,
+                        'timestamp': time.time()
+                    }
+                    # Cache for 5 minutes
+                    cache.set(cache_key_raw, raw_data, 300)
+                
+                models = raw_data['models']
 
                 # Fetch and enrich model capabilities
                 enriched_models = []
                 capabilities_cache = tool.config_data.get('capabilities_cache', {})
                 cache_updated = False
-
-                import time
-                import re
 
                 # Auto-cleanup stale pull progress if model is already in list or progress is 100%
                 pulling_model = tool.config_data.get('pulling_model')
@@ -184,9 +197,14 @@ class Module(BaseModule):
 
                 # Search and Pagination
                 from core.utils import paginate_list
-                search_query = request.GET.get('search', '')
-                page = request.GET.get('page', 1)
-                per_page = request.GET.get('per_page', 10)
+                if request:
+                    search_query = request.GET.get('search', '')
+                    page = request.GET.get('page', 1)
+                    per_page = request.GET.get('per_page', 10)
+                else:
+                    search_query = ''
+                    page = 1
+                    per_page = 10
                 
                 pagination = paginate_list(
                     enriched_models, 
